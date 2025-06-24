@@ -158,11 +158,16 @@ func TestConstraintSolverComplexDependencies(t *testing.T) {
 	}
 
 	// Check solution
+	// - webapp requires framework ~> 2.0 (>= 2.0, < 3.0) and database >= 1.0
+	// - framework 2.5.0 requires database ~> 2.0 (>= 2.0, < 3.0)
+	// - framework 2.0.0 requires database ~> 1.5 (>= 1.5, < 2.0)
+	// Since webapp requires database >= 1.0, both framework versions are valid
+	// The solver will pick the highest: framework 2.5.0
 	expectedCookbooks := map[string]string{
 		"webapp":    "1.0.0",
-		"framework": "2.0.0", // Should pick 2.0.0 because 2.5.0 requires database ~> 2.0 which conflicts
-		"logger":    "1.0.0",
-		"database":  "1.5.0", // Satisfies both >= 1.0 and ~> 1.5
+		"framework": "2.5.0", // Highest version that satisfies ~> 2.0
+		"logger":    "2.0.0", // Required by framework 2.5.0
+		"database":  "2.0.0", // Satisfies both >= 1.0 and ~> 2.0
 	}
 
 	for name, expectedVersion := range expectedCookbooks {
