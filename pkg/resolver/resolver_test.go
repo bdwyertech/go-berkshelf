@@ -135,10 +135,11 @@ func TestBasicResolution(t *testing.T) {
 		t.Errorf("Expected nginx version 2.7.6, got %s", nginx.Version.String())
 	}
 
-	// apt should satisfy ~> 2.2 which means >= 2.2.0, < 2.3.0
+	// apt should satisfy ~> 2.2 which means >= 2.2.0, < 3.0.0
+	// The resolver should pick the highest version that satisfies: 2.9.2
 	apt, _ := resolution.GetCookbook("apt")
-	if apt.Version.String() != "2.2.0" {
-		t.Errorf("Expected apt version 2.2.0 (satisfies ~> 2.2), got %s", apt.Version.String())
+	if apt.Version.String() != "2.9.2" {
+		t.Errorf("Expected apt version 2.9.2 (highest version satisfying ~> 2.2), got %s", apt.Version.String())
 	}
 }
 
