@@ -32,6 +32,7 @@ Thumbs.db
 berks
 berks-*
 dist/
+go-berkshelf
 
 # Coverage reports
 coverage.out
