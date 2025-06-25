@@ -10,21 +10,16 @@ import (
 	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
 
 	"github.com/spf13/cobra"
-)
-
-var (
-	installOnly   []string
-	installExcept []string
-	installForce  bool
+	"github.com/spf13/viper"
 )
 
 func init() {
 	rootCmd.AddCommand(installCmd)
 
 	// Add flags
-	installCmd.Flags().StringSliceVar(&installOnly, "only", nil, "Only install cookbooks in specified groups")
-	installCmd.Flags().StringSliceVar(&installExcept, "except", nil, "Install all cookbooks except those in specified groups")
-	installCmd.Flags().BoolVar(&installForce, "force", false, "Force installation even if Berksfile.lock is up to date")
+	installCmd.Flags().StringSliceP("only", "o", nil, "Only install cookbooks in specified groups")
+	installCmd.Flags().StringSliceP("except", "e", nil, "Install all cookbooks except those in specified groups")
+	installCmd.Flags().BoolP("force", "f", false, "Force installation even if Berksfile.lock is up to date")
 }
 
 var installCmd = &cobra.Command{
@@ -61,7 +56,7 @@ Examples:
 		lockManager := lockfile.NewManager(workDir)
 		log.Info("Checking lock file status...")
 
-		shouldProceed, err := CheckLockFileStatus(lockManager, installForce)
+		shouldProceed, err := CheckLockFileStatus(lockManager, viper.GetBool("force"))
 		if err != nil {
 			return err
 		}
@@ -70,8 +65,10 @@ Examples:
 		}
 
 		// Filter cookbooks by groups
-		cookbooks := berksfile.FilterCookbooksByGroup(berks.Cookbooks, installOnly, installExcept)
-		if len(installOnly) > 0 || len(installExcept) > 0 {
+		only, except := viper.GetStringSlice("only"), viper.GetStringSlice("except")
+
+		cookbooks := berksfile.FilterCookbooksByGroup(berks.Cookbooks, only, except)
+		if len(only) > 0 || len(except) > 0 {
 			log.Infof("Filtered to %d cookbooks based on group selection", len(cookbooks))
 		}
 

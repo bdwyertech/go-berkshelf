@@ -12,19 +12,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	vendorOnly   []string
-	vendorExcept []string
-)
-
 func init() {
 	rootCmd.AddCommand(vendorCmd)
 
 	// Add flags
 	vendorCmd.Flags().Bool("delete", false, "Delete the target directory before vendoring")
 	vendorCmd.Flags().Bool("dry-run", false, "Show what would be done without actually doing it")
-	vendorCmd.Flags().StringSliceVarP(&vendorOnly, "only", "o", nil, "Only vendor cookbooks in specified groups")
-	vendorCmd.Flags().StringSliceVarP(&vendorExcept, "except", "e", nil, "Vendor all cookbooks except those in specified groups")
+	vendorCmd.Flags().Bool("install", true, "Automatically create/update lockfile")
+	vendorCmd.Flags().StringSliceP("only", "o", nil, "Only vendor cookbooks in specified groups")
+	vendorCmd.Flags().StringSliceP("except", "e", nil, "Vendor all cookbooks except those in specified groups")
 }
 
 var vendorCmd = &cobra.Command{
@@ -44,6 +40,12 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetPath := args[0]
+
+		if viper.GetBool("install") {
+			if err := installCmd.RunE(cmd, args); err != nil {
+				return fmt.Errorf("failed to run install command: %w", err)
+			}
+		}
 
 		// Parse Berksfile
 		bf, err := LoadBerksfile()
@@ -65,9 +67,10 @@ Examples:
 
 		// Filter cookbooks by groups if needed
 		var allowedCookbooks []string
-		if len(vendorOnly) > 0 || len(vendorExcept) > 0 {
+		only, except := viper.GetStringSlice("only"), viper.GetStringSlice("except")
+		if len(only) > 0 || len(except) > 0 {
 			// Filter cookbooks from Berksfile
-			filtered := berksfile.FilterCookbooksByGroup(bf.Cookbooks, vendorOnly, vendorExcept)
+			filtered := berksfile.FilterCookbooksByGroup(bf.Cookbooks, only, except)
 
 			// Extract cookbook names
 			filteredNames := make([]string, 0, len(filtered))
@@ -76,7 +79,7 @@ Examples:
 			}
 
 			// If using --only, include transitive dependencies
-			if len(vendorOnly) > 0 {
+			if len(only) > 0 {
 				allowedCookbooks = vendor.FindTransitiveDependencies(lockFile, filteredNames)
 				log.Infof("Including %d cookbook(s) with dependencies", len(allowedCookbooks))
 			} else {
