@@ -11,8 +11,6 @@ var (
 	// Global flags
 	berksfilePath string
 	configFile    string
-	debug         bool
-	noColor       bool
 )
 
 func init() {
@@ -21,8 +19,8 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVarP(&berksfilePath, "berksfile", "b", "", "Path to Berksfile (default: ./Berksfile)")
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Config file (default: $HOME/.berkshelf/config.json)")
-	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug output")
+	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -37,7 +35,6 @@ It resolves cookbook dependencies from various sources including:
 - Git repositories  
 - Local paths
 - Chef Server`,
-	SilenceUsage: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		viper.BindPFlags(cmd.Flags())
 	},
@@ -67,7 +64,5 @@ func initConfig() {
 	if berksfilePath == "" {
 		berksfilePath = "Berksfile"
 	}
-
-	// TODO: Initialize logging based on debug flag
 	// TODO: Initialize color output based on noColor flag
 }

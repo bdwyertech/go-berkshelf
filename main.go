@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/bdwyer/go-berkshelf/cmd/berks"
+	"github.com/bdwyer/go-berkshelf/cmd"
 )
 
 func main() {
-	berks.Execute()
+	cmd.Execute()
 }

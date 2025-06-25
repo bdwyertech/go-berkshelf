@@ -24,6 +24,8 @@ type Options struct {
 	Delete bool
 	// DryRun shows what would be done without doing it
 	DryRun bool
+	// OnlyCookbooks is a list of cookbook names to vendor (if empty, all cookbooks are vendored)
+	OnlyCookbooks []string
 }
 
 // Result contains the result of a vendor operation
@@ -66,9 +68,21 @@ func (v *Vendorer) Vendor(ctx context.Context) (*Result, error) {
 		TargetPath: absPath,
 	}
 
-	// Count total cookbooks
-	for _, source := range v.lockFile.Sources {
-		result.TotalCookbooks += len(source.Cookbooks)
+	// Create allowed set for filtering
+	allowedCookbooks := make(map[string]bool)
+	if len(v.options.OnlyCookbooks) > 0 {
+		for _, name := range v.options.OnlyCookbooks {
+			allowedCookbooks[name] = true
+		}
+	}
+
+	// Count total cookbooks considering filter
+	if len(v.options.OnlyCookbooks) > 0 {
+		result.TotalCookbooks = len(v.options.OnlyCookbooks)
+	} else {
+		for _, source := range v.lockFile.Sources {
+			result.TotalCookbooks += len(source.Cookbooks)
+		}
 	}
 
 	// Delete target directory if requested
@@ -88,6 +102,11 @@ func (v *Vendorer) Vendor(ctx context.Context) (*Result, error) {
 	// Download each cookbook from lock file
 	for _, lockSource := range v.lockFile.Sources {
 		for cookbookName, lockedCookbook := range lockSource.Cookbooks {
+			// Skip if filtering is active and cookbook not in allowed list
+			if len(allowedCookbooks) > 0 && !allowedCookbooks[cookbookName] {
+				continue
+			}
+
 			if v.options.DryRun {
 				result.SuccessfulDownloads++
 				continue

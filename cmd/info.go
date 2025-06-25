@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +11,15 @@ import (
 	"github.com/bdwyer/go-berkshelf/pkg/source"
 	"github.com/spf13/cobra"
 )
+
+var infoFormat string
+
+func init() {
+	rootCmd.AddCommand(infoCmd)
+
+	// Add flags
+	infoCmd.Flags().StringVarP(&infoFormat, "format", "f", "text", "Output format (text, json)")
+}
 
 var infoCmd = &cobra.Command{
 	Use:   "info COOKBOOK [VERSION]",
@@ -24,68 +32,57 @@ Examples:
   berks info nginx 2.7.6     # Show info for specific version
   berks info nginx --format json  # Output as JSON`,
 	Args: cobra.RangeArgs(1, 2),
-	RunE: runInfo,
-}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cookbookName := args[0]
+		var requestedVersion string
+		if len(args) > 1 {
+			requestedVersion = args[1]
+		}
 
-var infoFormat string
+		// Try to parse Berksfile to get sources
+		var sourceManager *source.Manager
 
-func init() {
-	rootCmd.AddCommand(infoCmd)
-
-	// Add flags
-	infoCmd.Flags().StringVarP(&infoFormat, "format", "f", "text", "Output format (text, json)")
-}
-
-func runInfo(cmd *cobra.Command, args []string) error {
-	cookbookName := args[0]
-	var requestedVersion string
-	if len(args) > 1 {
-		requestedVersion = args[1]
-	}
-
-	// Try to parse Berksfile to get sources
-	var sourceManager *source.Manager
-
-	if _, err := os.Stat("Berksfile"); err == nil {
-		berksfileContent, err := os.ReadFile("Berksfile")
-		if err == nil {
-			bf, err := berksfile.ParseString(string(berksfileContent))
+		if _, err := os.Stat("Berksfile"); err == nil {
+			berksfileContent, err := os.ReadFile("Berksfile")
 			if err == nil {
-				factory := source.NewFactory()
-				sourceManager, _ = factory.CreateFromBerksfile(bf)
+				bf, err := berksfile.ParseString(string(berksfileContent))
+				if err == nil {
+					factory := source.NewFactory()
+					sourceManager, _ = factory.CreateFromBerksfile(bf)
+				}
 			}
 		}
-	}
 
-	// If no Berksfile or failed to parse, create default source manager
-	if sourceManager == nil {
-		factory := source.NewFactory()
-		sourceManager = source.NewManager()
-		supermarketSource, _ := factory.CreateFromURL("https://supermarket.chef.io")
-		if supermarketSource != nil {
+		// If no Berksfile or failed to parse, create default source manager
+		if sourceManager == nil {
+			factory := source.NewFactory()
+			sourceManager = source.NewManager()
+			supermarketSource, err := factory.CreateFromURL(source.PUBLIC_SUPERMARKET)
+			if err != nil {
+				return fmt.Errorf("failed to create supermarket source: %w", err)
+			}
 			sourceManager.AddSource(supermarketSource)
 		}
-	}
 
-	// Create info provider
-	provider := info.New(sourceManager)
+		// Create info provider
+		provider := info.New(sourceManager)
 
-	// Get cookbook information
-	ctx := context.Background()
-	cookbookInfo, err := provider.GetInfo(ctx, cookbookName, requestedVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get cookbook info: %w", err)
-	}
+		// Get cookbook information
+		cookbookInfo, err := provider.GetInfo(cmd.Context(), cookbookName, requestedVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get cookbook info: %w", err)
+		}
 
-	// Output in requested format
-	switch strings.ToLower(infoFormat) {
-	case "json":
-		return outputInfoJSON(cookbookInfo)
-	case "text":
-		return outputInfoText(cookbookInfo)
-	default:
-		return fmt.Errorf("unsupported format: %s (supported: text, json)", infoFormat)
-	}
+		// Output in requested format
+		switch strings.ToLower(infoFormat) {
+		case "json":
+			return outputInfoJSON(cookbookInfo)
+		case "text":
+			return outputInfoText(cookbookInfo)
+		default:
+			return fmt.Errorf("unsupported format: %s (supported: text, json)", infoFormat)
+		}
+	},
 }
 
 func outputInfoJSON(info *info.CookbookInfo) error {

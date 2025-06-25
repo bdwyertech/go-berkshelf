@@ -5,10 +5,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
 	"github.com/bdwyer/go-berkshelf/pkg/vendor"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+var (
+	vendorOnly   []string
+	vendorExcept []string
 )
 
 func init() {
@@ -17,6 +23,8 @@ func init() {
 	// Add flags
 	vendorCmd.Flags().Bool("delete", false, "Delete the target directory before vendoring")
 	vendorCmd.Flags().Bool("dry-run", false, "Show what would be done without actually doing it")
+	vendorCmd.Flags().StringSliceVarP(&vendorOnly, "only", "o", nil, "Only vendor cookbooks in specified groups")
+	vendorCmd.Flags().StringSliceVarP(&vendorExcept, "except", "e", nil, "Vendor all cookbooks except those in specified groups")
 }
 
 var vendorCmd = &cobra.Command{
@@ -29,8 +37,10 @@ maintaining the proper directory structure for Chef. This is useful for
 packaging cookbooks for deployment or creating a self-contained cookbook bundle.
 
 Examples:
-  berks vendor ./vendor           # Download to ./vendor  
-  berks vendor --delete           # Delete target directory first`,
+     berks vendor ./vendor
+	 berks vendor --delete                    # Delete target directory first
+	 berks vendor ./vendor --only production  # Vendor only production group cookbooks
+	 berks vendor ./vendor --except test      # Vendor all except test group cookbooks`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetPath := args[0]
@@ -53,11 +63,38 @@ Examples:
 			return err
 		}
 
+		// Filter cookbooks by groups if needed
+		var allowedCookbooks []string
+		if len(vendorOnly) > 0 || len(vendorExcept) > 0 {
+			// Filter cookbooks from Berksfile
+			filtered := berksfile.FilterCookbooksByGroup(bf.Cookbooks, vendorOnly, vendorExcept)
+
+			// Extract cookbook names
+			filteredNames := make([]string, 0, len(filtered))
+			for _, cb := range filtered {
+				filteredNames = append(filteredNames, cb.Name)
+			}
+
+			// If using --only, include transitive dependencies
+			if len(vendorOnly) > 0 {
+				allowedCookbooks = vendor.FindTransitiveDependencies(lockFile, filteredNames)
+				log.Infof("Including %d cookbook(s) with dependencies", len(allowedCookbooks))
+			} else {
+				// For --except, don't include dependencies of excluded cookbooks
+				allowedCookbooks = filteredNames
+			}
+
+			if len(allowedCookbooks) == 0 {
+				return fmt.Errorf("no cookbooks match the specified group filters")
+			}
+		}
+
 		// Create vendor options
 		options := vendor.Options{
-			TargetPath: targetPath,
-			Delete:     viper.GetBool("delete"),
-			DryRun:     viper.GetBool("dry-run"),
+			TargetPath:    targetPath,
+			Delete:        viper.GetBool("delete"),
+			DryRun:        viper.GetBool("dry-run"),
+			OnlyCookbooks: allowedCookbooks,
 		}
 
 		// Create vendorer

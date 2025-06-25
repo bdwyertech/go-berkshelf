@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +43,7 @@ metadata
 			return fmt.Errorf("failed to create Berksfile: %w", err)
 		}
 
-		fmt.Printf("Successfully created %s\n", berksfilePath)
+		log.Infof("Successfully created %s\n", berksfilePath)
 		return nil
 	},
 }
