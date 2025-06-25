@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
 	"github.com/bdwyer/go-berkshelf/pkg/source"
@@ -145,6 +147,7 @@ func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, ve
 				// Fetch cookbook metadata
 				cookbook, err := src.FetchCookbook(ctx, cookbookName, version)
 				if err == nil {
+					log.Infof("Vendoring %s (%s) to %s", cookbook.Name, version, targetDir)
 					if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err == nil {
 						return nil
 					}
@@ -162,7 +165,7 @@ func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, ve
 			lastErr = fmt.Errorf("source %s failed: %w", src.Name(), err)
 			continue // Try next source
 		}
-
+		log.Infof("Vendoring %s (%s) to %s", cookbook.Name, version, targetDir)
 		if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err == nil {
 			return nil
 		}
