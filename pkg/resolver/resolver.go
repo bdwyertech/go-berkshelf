@@ -75,6 +75,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requireme
 			resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
 			continue
 		}
+		log.Infof("Using %s (%s) from %s", req.Name, version.String(), source.Name())
 
 		// Fetch the cookbook metadata
 		cookbook, err := r.fetchCookbook(ctx, req.Name, version, source)
@@ -334,4 +335,3 @@ func (c *ResolutionCache) Clear() {
 	c.versions = make(map[string][]*berkshelf.Version)
 	c.metadata = make(map[string]*berkshelf.Cookbook)
 }
-

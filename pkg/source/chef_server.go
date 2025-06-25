@@ -2,14 +2,10 @@ package source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/go-chef/chef"
@@ -162,127 +158,18 @@ func (s *ChefServerSource) FetchCookbook(ctx context.Context, name string, versi
 
 // DownloadAndExtractCookbook downloads the cookbook files and extracts them to the specified directory.
 func (s *ChefServerSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
-	// Get the cookbook version details from Chef server
-	chefCookbook, err := s.chefClient.Cookbooks.GetVersion(cookbook.Name, cookbook.Version.String())
-	if err != nil {
-		return fmt.Errorf("fetching cookbook details: %w", err)
+	if err := s.chefClient.Cookbooks.DownloadTo(cookbook.Name, cookbook.Version.String(), filepath.Dir(targetDir)); err != nil {
+		return fmt.Errorf("downloading cookbook %s version %s: %w", cookbook.Name, cookbook.Version.String(), err)
 	}
-
-	// Create target directory
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("creating target directory: %w", err)
+	if err := os.Remove(targetDir); err != nil {
+		return fmt.Errorf("error removing target directory: %w", err)
 	}
-
-	// Download all cookbook files
-	fileTypes := map[string][]chef.CookbookItem{
-		"recipes":     chefCookbook.Recipes,
-		"attributes":  chefCookbook.Attributes,
-		"libraries":   chefCookbook.Libraries,
-		"templates":   chefCookbook.Templates,
-		"files":       chefCookbook.Files,
-		"resources":   chefCookbook.Resources,
-		"providers":   chefCookbook.Providers,
-		"definitions": chefCookbook.Definitions,
-	}
-
-	for fileType, items := range fileTypes {
-		for _, item := range items {
-			if err := s.downloadFile(ctx, item, targetDir, fileType); err != nil {
-				return fmt.Errorf("downloading %s file %s: %w", fileType, item.Name, err)
-			}
-		}
-	}
-
-	// Download root files
-	for _, item := range chefCookbook.RootFiles {
-		if err := s.downloadFile(ctx, item, targetDir, ""); err != nil {
-			return fmt.Errorf("downloading root file %s: %w", item.Name, err)
-		}
-	}
-
-	// Create metadata.json
-	metadataPath := filepath.Join(targetDir, "metadata.json")
-	metadataData := map[string]interface{}{
-		"name":         cookbook.Name,
-		"version":      cookbook.Version.String(),
-		"description":  cookbook.Metadata.Description,
-		"maintainer":   cookbook.Metadata.Maintainer,
-		"license":      cookbook.Metadata.License,
-		"dependencies": make(map[string]string),
-	}
-
-	// Add dependencies
-	deps := metadataData["dependencies"].(map[string]string)
-	for name, constraint := range cookbook.Dependencies {
-		deps[name] = constraint.String()
-	}
-
-	metadataJSON, err := json.MarshalIndent(metadataData, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshaling metadata: %w", err)
-	}
-
-	if err := os.WriteFile(metadataPath, metadataJSON, 0644); err != nil {
-		return fmt.Errorf("writing metadata.json: %w", err)
+	if err := os.Rename(targetDir+"-"+cookbook.Version.String(), targetDir); err != nil {
+		return fmt.Errorf("error renaming target directory: %w", err)
 	}
 
 	// Set the cookbook path
 	cookbook.Path = targetDir
-
-	return nil
-}
-
-// downloadFile downloads a single file from the Chef server.
-func (s *ChefServerSource) downloadFile(ctx context.Context, item chef.CookbookItem, targetDir, fileType string) error {
-	// Construct the target path
-	var targetPath string
-	if fileType == "" {
-		// Root file
-		targetPath = filepath.Join(targetDir, item.Name)
-	} else {
-		targetPath = filepath.Join(targetDir, fileType, item.Name)
-	}
-
-	// Create directory if needed
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-		return fmt.Errorf("creating directory: %w", err)
-	}
-
-	// Download the file - note the field is Url, not URL
-	req, err := http.NewRequestWithContext(ctx, "GET", item.Url, nil)
-	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
-	}
-
-	// Create a custom HTTP client with authentication
-	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	// For simplicity, we'll make an unauthenticated request first
-	// In a production implementation, you'd need to sign the request
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("downloading file: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file: HTTP %d", resp.StatusCode)
-	}
-
-	// Create the file
-	outFile, err := os.Create(targetPath)
-	if err != nil {
-		return fmt.Errorf("creating file %s: %w", targetPath, err)
-	}
-	defer outFile.Close()
-
-	// Copy the content
-	_, err = io.Copy(outFile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("writing file %s: %w", targetPath, err)
-	}
 
 	return nil
 }
