@@ -75,8 +75,8 @@ func TestSupermarketSource_FetchMetadata(t *testing.T) {
 		}
 
 		response := cookbookVersionResponse{
-			Version:    "2.7.6",
-			TarballURL: "https://example.com/nginx-2.7.6.tar.gz",
+			Version: "2.7.6",
+			FileURL: "https://example.com/nginx-2.7.6.tar.gz",
 			Dependencies: map[string]string{
 				"apt":             "~> 2.2",
 				"build-essential": "~> 2.0",
