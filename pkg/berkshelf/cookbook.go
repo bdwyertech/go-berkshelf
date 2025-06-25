@@ -13,6 +13,7 @@ type Cookbook struct {
 	Metadata     *Metadata              `json:"metadata,omitempty"`
 	Source       SourceLocation         `json:"source,omitempty"`
 	Path         string                 `json:"path,omitempty"`
+	TarballURL   string                 `json:"tarball_url,omitempty"`
 }
 
 // Metadata represents cookbook metadata from metadata.rb or metadata.json

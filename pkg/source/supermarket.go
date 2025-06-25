@@ -1,12 +1,17 @@
 package source
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
@@ -111,7 +116,20 @@ func (s *SupermarketSource) ListVersions(ctx context.Context, name string) ([]*b
 	}
 
 	versions := make([]*berkshelf.Version, 0, len(cookbook.Versions))
-	for _, versionStr := range cookbook.Versions {
+	for _, versionURL := range cookbook.Versions {
+		// Extract version from URL path (e.g., ".../versions/9.2.1" -> "9.2.1")
+		u, err := url.Parse(versionURL)
+		if err != nil {
+			continue // Skip invalid URLs
+		}
+
+		// Extract version from path: /api/v1/cookbooks/name/versions/VERSION
+		pathParts := strings.Split(u.Path, "/")
+		if len(pathParts) < 2 {
+			continue // Skip malformed paths
+		}
+		versionStr := pathParts[len(pathParts)-1]
+
 		v, err := berkshelf.NewVersion(versionStr)
 		if err != nil {
 			continue // Skip invalid versions
@@ -125,7 +143,7 @@ func (s *SupermarketSource) ListVersions(ctx context.Context, name string) ([]*b
 // cookbookVersionResponse represents the API response for a specific cookbook version.
 type cookbookVersionResponse struct {
 	Version      string            `json:"version"`
-	TarballURL   string            `json:"tarball_file_url"`
+	FileURL      string            `json:"file"`
 	Dependencies map[string]string `json:"dependencies"`
 	Attributes   []string          `json:"attributes"`
 	Recipes      []recipeInfo      `json:"recipes"`
@@ -201,22 +219,160 @@ func (s *SupermarketSource) FetchMetadata(ctx context.Context, name string, vers
 
 // FetchCookbook downloads the complete cookbook at the specified version.
 func (s *SupermarketSource) FetchCookbook(ctx context.Context, name string, version *berkshelf.Version) (*berkshelf.Cookbook, error) {
-	// First fetch the metadata
+	// First fetch the metadata to get the tarball URL
 	metadata, err := s.FetchMetadata(ctx, name, version)
 	if err != nil {
 		return nil, err
 	}
 
-	// For now, just return a cookbook with the metadata
-	// In a full implementation, we would download the tarball and extract it
+	// Get the tarball URL from the version API response
+	endpoint := fmt.Sprintf("%s/api/v1/cookbooks/%s/versions/%s",
+		s.baseURL, url.PathEscape(name), url.PathEscape(version.String()))
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	if s.apiKey != "" {
+		req.Header.Set("X-Ops-Userid", s.apiKey)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, &ErrSourceUnavailable{Source: s.Name(), Reason: err.Error()}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get version details: %d", resp.StatusCode)
+	}
+
+	var versionResp cookbookVersionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&versionResp); err != nil {
+		return nil, fmt.Errorf("decoding version response: %w", err)
+	}
+
+	// Use FileURL if available, otherwise fall back to TarballURL
+	tarballURL := versionResp.FileURL
+	if tarballURL == "" {
+		return nil, fmt.Errorf("no download URL found for %s version %s", name, version.String())
+	}
+
+	// Create the cookbook object with metadata
 	cookbook := &berkshelf.Cookbook{
-		Name:     name,
-		Version:  version,
-		Metadata: metadata,
-		Path:     "", // Would be set after downloading
+		Name:         name,
+		Version:      version,
+		Metadata:     metadata,
+		Dependencies: metadata.Dependencies, // Copy dependencies to cookbook level
+		Source: berkshelf.SourceLocation{
+			Type: "supermarket",
+			URL:  s.baseURL,
+		},
+		TarballURL: tarballURL, // Store the download URL
+		Path:       "",         // Will be set when extracted
 	}
 
 	return cookbook, nil
+}
+
+// DownloadAndExtractCookbook downloads the cookbook tarball and extracts it to the specified directory.
+func (s *SupermarketSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
+	if cookbook.TarballURL == "" {
+		return fmt.Errorf("no tarball URL available for cookbook %s", cookbook.Name)
+	}
+
+	// Download the tarball
+	req, err := http.NewRequestWithContext(ctx, "GET", cookbook.TarballURL, nil)
+	if err != nil {
+		return fmt.Errorf("creating download request: %w", err)
+	}
+
+	if s.apiKey != "" {
+		req.Header.Set("X-Ops-Userid", s.apiKey)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("downloading tarball: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download tarball: HTTP %d", resp.StatusCode)
+	}
+
+	// Create target directory
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("creating target directory: %w", err)
+	}
+
+	// Extract the tarball
+	gzipReader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return fmt.Errorf("creating gzip reader: %w", err)
+	}
+	defer gzipReader.Close()
+
+	tarReader := tar.NewReader(gzipReader)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("reading tar: %w", err)
+		}
+
+		// Skip directories and non-regular files
+		if header.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		// Clean the path and remove leading cookbook directory
+		// Supermarket tarballs typically have a top-level directory like "cookbook-name-version/"
+		pathParts := strings.Split(header.Name, "/")
+		if len(pathParts) <= 1 {
+			continue // Skip files in root
+		}
+
+		// Skip the first directory component and join the rest
+		relativePath := filepath.Join(pathParts[1:]...)
+		if relativePath == "" {
+			continue
+		}
+
+		targetPath := filepath.Join(targetDir, relativePath)
+
+		// Create directory if needed
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return fmt.Errorf("creating directory for %s: %w", targetPath, err)
+		}
+
+		// Extract the file
+		outFile, err := os.Create(targetPath)
+		if err != nil {
+			return fmt.Errorf("creating file %s: %w", targetPath, err)
+		}
+
+		_, err = io.Copy(outFile, tarReader)
+		outFile.Close()
+		if err != nil {
+			return fmt.Errorf("extracting file %s: %w", targetPath, err)
+		}
+
+		// Set file permissions
+		if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
+			// Don't fail on permission errors, just log them
+			continue
+		}
+	}
+
+	// Set the cookbook path
+	cookbook.Path = targetDir
+
+	return nil
 }
 
 // Search returns cookbooks matching the query.

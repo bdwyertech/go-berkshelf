@@ -54,8 +54,11 @@ func TestParser_BasicBerksfile(t *testing.T) {
 				if b.Cookbooks[0].Name != "nginx" {
 					t.Errorf("expected cookbook name 'nginx', got %q", b.Cookbooks[0].Name)
 				}
-				if b.Cookbooks[0].Constraint != nil {
-					t.Error("expected no constraint")
+				if b.Cookbooks[0].Constraint == nil {
+					t.Fatal("expected default constraint")
+				}
+				if b.Cookbooks[0].Constraint.String() != ">= 0.0.0" {
+					t.Errorf("expected default constraint '>= 0.0.0', got %q", b.Cookbooks[0].Constraint.String())
 				}
 			},
 		},

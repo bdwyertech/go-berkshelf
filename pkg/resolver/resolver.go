@@ -80,11 +80,21 @@ func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requireme
 			continue
 		}
 
+		// Create source location from the actual source that provided the cookbook
+		var sourceLocation *berkshelf.SourceLocation
+		if req.Source != nil {
+			// Use the requirement's specific source if provided
+			sourceLocation = req.Source
+		} else {
+			// Create source location from the actual source that provided the cookbook
+			sourceLocation = createSourceLocationFromSource(source)
+		}
+
 		// Add to resolution
 		resolved := &ResolvedCookbook{
 			Name:         cookbook.Name,
 			Version:      version,
-			Source:       req.Source,
+			Source:       sourceLocation,
 			Dependencies: make(map[string]*berkshelf.Version),
 			Cookbook:     cookbook,
 		}
@@ -273,4 +283,30 @@ func (c *ResolutionCache) Clear() {
 
 	c.versions = make(map[string][]*berkshelf.Version)
 	c.metadata = make(map[string]*berkshelf.Cookbook)
+}
+
+// createSourceLocationFromSource creates a SourceLocation from a CookbookSource
+func createSourceLocationFromSource(src source.CookbookSource) *berkshelf.SourceLocation {
+	if src == nil {
+		return nil
+	}
+
+	// Extract URL from source name - this is a bit hacky but works for our current sources
+	name := src.Name()
+
+	// SupermarketSource names are like "supermarket (https://example.com)"
+	if len(name) > 12 && name[:12] == "supermarket " {
+		url := name[13 : len(name)-1] // Remove "supermarket (" and ")"
+		fmt.Println(url)
+		return &berkshelf.SourceLocation{
+			Type: "supermarket",
+			URL:  url,
+		}
+	}
+
+	// Default fallback
+	return &berkshelf.SourceLocation{
+		Type: "supermarket",
+		URL:  "https://supermarket.chef.io",
+	}
 }

@@ -123,6 +123,11 @@ func (f *Factory) createFromURL(url string) (CookbookSource, error) {
 	return NewSupermarketSource(url), nil
 }
 
+// CreateFromURL creates a source from a URL string (public method)
+func (f *Factory) CreateFromURL(url string) (CookbookSource, error) {
+	return f.createFromURL(url)
+}
+
 // CreateSourceForCookbook creates appropriate sources for a cookbook definition.
 func (f *Factory) CreateSourceForCookbook(cookbook *berksfile.CookbookDef) ([]CookbookSource, error) {
 	sources := make([]CookbookSource, 0)

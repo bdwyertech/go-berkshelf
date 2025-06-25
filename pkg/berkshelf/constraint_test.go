@@ -58,7 +58,7 @@ func TestNewConstraint(t *testing.T) {
 		{
 			name:       "empty constraint",
 			constraint: "",
-			wantErr:    true,
+			wantErr:    false,
 		},
 	}
 
@@ -303,7 +303,8 @@ func TestMustConstraintPanic(t *testing.T) {
 		}
 	}()
 
-	MustConstraint("")
+	// Use an actually invalid constraint that will cause panic
+	MustConstraint("invalid constraint syntax !!!")
 }
 
 func TestConstraintString(t *testing.T) {

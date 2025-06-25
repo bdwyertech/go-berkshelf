@@ -72,6 +72,11 @@ func (m *Manager) AddSource(source CookbookSource) {
 	m.sources = append(m.sources, source)
 }
 
+// GetSources returns all sources in the manager
+func (m *Manager) GetSources() []CookbookSource {
+	return m.sources
+}
+
 // ListVersions queries all sources for available versions.
 func (m *Manager) ListVersions(ctx context.Context, name string) ([]*berkshelf.Version, error) {
 	versionMap := make(map[string]*berkshelf.Version)

@@ -85,12 +85,12 @@ end
 	//   - nginx (~> 2.7.6)
 	//   - mysql (>= 5.0.0)
 	//   - postgresql (= 9.3.0)
-	//   - private [git: git@github.com:user/private-cookbook.git]
-	//   - myapp [path: ../myapp]
-	//   - test-kitchen groups: [integration]
-	//   - kitchen-vagrant groups: [integration]
+	//   - private (>= 0.0.0) [git: git@github.com:user/private-cookbook.git]
+	//   - myapp (>= 0.0.0) [path: ../myapp]
+	//   - test-kitchen (>= 0.0.0) groups: [integration]
+	//   - kitchen-vagrant (>= 0.0.0) groups: [integration]
 	//   - chefspec (~> 4.0) groups: [development]
-	//   - rubocop groups: [development]
+	//   - rubocop (>= 0.0.0) groups: [development]
 	//
 	// Groups:
 	//   integration:

@@ -16,8 +16,16 @@ type Constraint struct {
 
 // NewConstraint creates a constraint from a string
 func NewConstraint(c string) (*Constraint, error) {
+	// If no constraint is provided, use "any version" (>= 0.0.0)
 	if c == "" {
-		return nil, fmt.Errorf("constraint cannot be empty")
+		constraint, err := semver.NewConstraint(">= 0.0.0")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default constraint: %w", err)
+		}
+		return &Constraint{
+			raw:        "",
+			constraint: constraint,
+		}, nil
 	}
 
 	// Convert Ruby-style constraints to semver format
@@ -53,6 +61,9 @@ func (c *Constraint) Check(v *Version) bool {
 
 // String returns the original constraint string
 func (c *Constraint) String() string {
+	if c.raw == "" {
+		return ">= 0.0.0"
+	}
 	return c.raw
 }
 

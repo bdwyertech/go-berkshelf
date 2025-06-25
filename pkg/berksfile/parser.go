@@ -97,6 +97,13 @@ func (p *Parser) parseCookbook() (*CookbookDef, error) {
 	}
 	p.advance()
 
+	// Set default constraint (any version) if none is specified
+	defaultConstraint, err := ParseConstraint("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default constraint: %v", err)
+	}
+	cookbook.Constraint = defaultConstraint
+
 	// Parse optional version constraint and/or options
 	if p.current().Type == TokenComma {
 		p.advance()
