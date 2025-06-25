@@ -7,6 +7,7 @@ import (
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyer/go-berkshelf/pkg/resolver"
+	"github.com/bdwyer/go-berkshelf/pkg/source"
 )
 
 const (
@@ -87,17 +88,14 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 
 	// Process each resolved cookbook
 	for _, resolvedCookbook := range resolution.Cookbooks {
-		// Get source URL for grouping
-		sourceURL := getSourceURL(resolvedCookbook.Source)
-
 		// Determine source information
 		sourceInfo := &SourceInfo{
 			Type: getSourceType(resolvedCookbook.Source),
-			URL:  sourceURL,
+			URL:  getSourceURL(resolvedCookbook.Source),
 		}
 
 		// Add to lock file
-		lockFile.AddCookbook(sourceURL, resolvedCookbook.Cookbook, sourceInfo)
+		lockFile.AddCookbook(sourceInfo.URL, resolvedCookbook.Cookbook, sourceInfo)
 	}
 
 	return lockFile, nil
@@ -252,31 +250,33 @@ func (m *Manager) Backup() error {
 // Helper functions
 
 func getSourceType(source any) string {
-	// This would need to be implemented based on the actual source interface
-	// For now, return a generic type
 	if source == nil {
 		return "unknown"
 	}
 
-	// Use type assertion to determine source type
-	switch source.(type) {
-	default:
-		return "supermarket" // Default to supermarket
+	// Type assert to berkshelf.SourceLocation
+	if sourceLocation, ok := source.(*berkshelf.SourceLocation); ok && sourceLocation != nil {
+		if sourceLocation.Type != "" {
+			return sourceLocation.Type
+		}
 	}
+
+	// Default fallback
+	return "supermarket"
 }
 
-func getSourceURL(source any) string {
-	if source == nil {
-		return "https://supermarket.chef.io"
+func getSourceURL(src any) string {
+	if src == nil {
+		return source.PUBLIC_SUPERMARKET
 	}
 
 	// Type assert to berkshelf.SourceLocation
-	if sourceLocation, ok := source.(*berkshelf.SourceLocation); ok && sourceLocation != nil {
+	if sourceLocation, ok := src.(*berkshelf.SourceLocation); ok && sourceLocation != nil {
 		if sourceLocation.URL != "" {
 			return sourceLocation.URL
 		}
 	}
 
 	// Default fallback
-	return "https://supermarket.chef.io"
+	return source.PUBLIC_SUPERMARKET
 }

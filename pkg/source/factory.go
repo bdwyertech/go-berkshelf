@@ -127,7 +127,7 @@ func (f *Factory) createFromURL(uri string) (CookbookSource, error) {
 		// Parse chef_server://hostname?client_name=name&client_key=path
 		chefUrl, err := url.Parse(strings.TrimPrefix(uri, "chef_server://"))
 		if err != nil {
-			return nil, fmt.Errorf("error parsing", err)
+			return nil, fmt.Errorf("error parsing %w", err)
 		}
 
 		// Parse query parameters

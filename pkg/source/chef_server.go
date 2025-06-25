@@ -110,11 +110,20 @@ func (s *ChefServerSource) FetchMetadata(ctx context.Context, name string, versi
 		return nil, &ErrSourceUnavailable{Source: s.Name(), Reason: err.Error()}
 	}
 
-	// Convert dependencies - use empty map for now since the API structure is unclear
+	// Convert dependencies from Chef Server format to berkshelf constraints
 	dependencies := make(map[string]*berkshelf.Constraint)
+	if cookbook.Metadata.Depends != nil {
+		for depName, depConstraint := range cookbook.Metadata.Depends {
+			// Parse the constraint string into a berkshelf.Constraint
+			constraint, err := berkshelf.NewConstraint(depConstraint)
+			if err != nil {
+				// If constraint parsing fails, use a default constraint
+				constraint, _ = berkshelf.NewConstraint(">= 0.0.0")
+			}
+			dependencies[depName] = constraint
+		}
+	}
 
-	// For now, we'll create basic metadata
-	// In a production implementation, you'd need to parse the actual Chef cookbook metadata
 	metadata := &berkshelf.Metadata{
 		Name:         name,
 		Version:      version,
