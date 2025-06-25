@@ -71,19 +71,36 @@ func (p *Parser) Parse() (*Berksfile, error) {
 func (p *Parser) parseSource(berksfile *Berksfile) error {
 	p.advance() // consume 'source'
 
-	if p.current().Type != TokenString {
-		return fmt.Errorf("expected string after 'source', got %s", p.current().Type)
-	}
-
-	berksfile.Sources = append(berksfile.Sources, p.current().Value)
-	p.advance()
-
-	// Skip any trailing newlines
-	for p.current().Type == TokenNewline {
+	// Handle simple string source (e.g., source "https://supermarket.chef.io")
+	if p.current().Type == TokenString && p.peek().Type != TokenColon {
+		berksfile.Sources = append(berksfile.Sources, p.current().Value)
 		p.advance()
+
+		// Skip any trailing newlines
+		for p.current().Type == TokenNewline {
+			p.advance()
+		}
+		return nil
 	}
 
-	return nil
+	// Handle named parameter source (e.g., source chef_server: "https://...", client_name: "...", client_key: "...")
+	if p.current().Type == TokenString && p.peek().Type == TokenColon {
+		sourceURL, err := p.parseSourceOptions()
+		if err != nil {
+			return err
+		}
+		if sourceURL != "" {
+			berksfile.Sources = append(berksfile.Sources, sourceURL)
+		}
+
+		// Skip any trailing newlines
+		for p.current().Type == TokenNewline {
+			p.advance()
+		}
+		return nil
+	}
+
+	return fmt.Errorf("expected string or named parameters after 'source', got %s", p.current().Type)
 }
 
 func (p *Parser) parseCookbook() (*CookbookDef, error) {
@@ -210,6 +227,67 @@ func (p *Parser) parseCookbookOptions(cookbook *CookbookDef) error {
 	}
 
 	return nil
+}
+
+func (p *Parser) parseSourceOptions() (string, error) {
+	var sourceURL string
+	var clientName, clientKey string
+
+	for p.position < len(p.tokens) {
+		token := p.current()
+
+		// Check for end of options
+		if token.Type == TokenNewline || token.Type == TokenEOF {
+			break
+		}
+
+		// Parse key: value pairs
+		if token.Type == TokenString {
+			key := token.Value
+			p.advance()
+
+			if p.current().Type != TokenColon {
+				return "", fmt.Errorf("expected ':' after source option key %q", key)
+			}
+			p.advance()
+
+			if p.current().Type != TokenString {
+				return "", fmt.Errorf("expected value for source option %q", key)
+			}
+			value := p.current().Value
+			p.advance()
+
+			// Handle specific source options
+			switch key {
+			case "chef_server":
+				sourceURL = value
+			case "client_name":
+				clientName = value
+			case "client_key":
+				clientKey = value
+			default:
+				// Store other options if needed
+			}
+
+			// Check for comma separator
+			if p.current().Type == TokenComma {
+				p.advance()
+			}
+		} else {
+			break
+		}
+	}
+
+	// For Chef server sources, we need to store the authentication info
+	// We'll create a special URL format that includes this information
+	if sourceURL != "" && clientName != "" && clientKey != "" {
+		// Store as a chef_server source with authentication
+		// The factory will parse this information
+		return fmt.Sprintf("chef_server://%s?client_name=%s&client_key=%s",
+			sourceURL, clientName, clientKey), nil
+	}
+
+	return sourceURL, nil
 }
 
 func (p *Parser) parseGroup(berksfile *Berksfile) error {

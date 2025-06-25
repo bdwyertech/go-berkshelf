@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
@@ -90,6 +91,17 @@ func (f *Factory) CreateFromLocation(location *berkshelf.SourceLocation) (Cookbo
 		}
 		return NewSupermarketSource(url), nil
 
+	case "chef_server":
+		// Extract authentication details from options
+		clientName := getStringOption(location.Options, "client_name")
+		clientKey := getStringOption(location.Options, "client_key")
+
+		if clientName == "" || clientKey == "" {
+			return nil, fmt.Errorf("chef_server source requires client_name and client_key options")
+		}
+
+		return NewChefServerSource(location.URL, clientName, clientKey)
+
 	default:
 		return nil, fmt.Errorf("unknown source type: %s", location.Type)
 	}
@@ -109,31 +121,53 @@ func getStringOption(options map[string]any, key string) string {
 }
 
 // createFromURL creates a source from a URL string.
-func (f *Factory) createFromURL(url string) (CookbookSource, error) {
-	// Determine the type of source from the URL
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		// Assume it's a Supermarket API endpoint
-		return NewSupermarketSource(url), nil
+func (f *Factory) createFromURL(uri string) (CookbookSource, error) {
+	// Handle Chef Server URLs with authentication
+	if strings.HasPrefix(uri, "chef_server://") {
+		// Parse chef_server://hostname?client_name=name&client_key=path
+		chefUrl, err := url.Parse(strings.TrimPrefix(uri, "chef_server://"))
+		if err != nil {
+			return nil, fmt.Errorf("error parsing", err)
+		}
+
+		// Parse query parameters
+		q := chefUrl.Query()
+		clientName := q.Get("client_name")
+		clientKey := q.Get("client_key")
+
+		chefUrl.Path = ""
+
+		if clientName == "" || clientKey == "" {
+			return nil, fmt.Errorf("chef_server URL missing client_name or client_key: %s", chefUrl.String())
+		}
+
+		return NewChefServerSource(chefUrl.String(), clientName, clientKey)
 	}
 
-	if strings.HasPrefix(url, "git://") || strings.HasPrefix(url, "git@") {
+	// Determine the type of source from the URL
+	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+		// Assume it's a Supermarket API endpoint
+		return NewSupermarketSource(uri), nil
+	}
+
+	if strings.HasPrefix(uri, "git://") || strings.HasPrefix(uri, "git@") {
 		// Git source
 		opts := &berkshelf.SourceLocation{
 			Type:    "git",
-			URL:     url,
+			URL:     uri,
 			Options: make(map[string]any),
 		}
-		return NewGitSource(url, opts)
+		return NewGitSource(uri, opts)
 	}
 
-	if strings.HasPrefix(url, "file://") {
+	if strings.HasPrefix(uri, "file://") {
 		// Local path
-		path := strings.TrimPrefix(url, "file://")
+		path := strings.TrimPrefix(uri, "file://")
 		return NewPathSource(path)
 	}
 
 	// Default to Supermarket
-	return NewSupermarketSource(url), nil
+	return NewSupermarketSource(uri), nil
 }
 
 // CreateFromURL creates a source from a URL string (public method)

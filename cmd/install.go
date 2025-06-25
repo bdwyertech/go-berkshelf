@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -89,8 +88,7 @@ Examples:
 
 		// 5. Resolve dependencies
 		log.Info("Resolving dependencies...")
-		ctx := context.Background()
-		resolution, err := ResolveDependencies(ctx, requirements, sourceManager.GetSources())
+		resolution, err := ResolveDependencies(cmd.Context(), requirements, sourceManager.GetSources())
 		if err != nil {
 			return err
 		}

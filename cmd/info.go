@@ -6,9 +6,12 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
 	"github.com/bdwyer/go-berkshelf/pkg/info"
 	"github.com/bdwyer/go-berkshelf/pkg/source"
+
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +51,10 @@ Examples:
 				bf, err := berksfile.ParseString(string(berksfileContent))
 				if err == nil {
 					factory := source.NewFactory()
-					sourceManager, _ = factory.CreateFromBerksfile(bf)
+					sourceManager, err = factory.CreateFromBerksfile(bf)
+					if err != nil {
+						log.Error(err)
+					}
 				}
 			}
 		}

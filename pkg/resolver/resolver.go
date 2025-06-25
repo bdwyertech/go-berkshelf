@@ -6,6 +6,8 @@ import (
 	"sort"
 	"sync"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyer/go-berkshelf/pkg/source"
 )
@@ -294,17 +296,50 @@ func createSourceLocationFromSource(src source.CookbookSource) *berkshelf.Source
 	// Extract URL from source name - this is a bit hacky but works for our current sources
 	name := src.Name()
 
+	log.Debugf("Creating source location from source: %s", name)
+
+	// ChefServerSource names are like "chef-server (https://chef.example.com/organizations/myorg)"
+	if len(name) > 12 && name[:12] == "chef-server " {
+		url := name[13 : len(name)-1] // Remove "chef-server (" and ")"
+		log.Debugf("Chef server URL: %s", url)
+		return &berkshelf.SourceLocation{
+			Type: "chef_server",
+			URL:  url,
+		}
+	}
+
 	// SupermarketSource names are like "supermarket (https://example.com)"
 	if len(name) > 12 && name[:12] == "supermarket " {
 		url := name[13 : len(name)-1] // Remove "supermarket (" and ")"
-		fmt.Println(url)
+		log.Debugf("Supermarket URL: %s", url)
 		return &berkshelf.SourceLocation{
 			Type: "supermarket",
 			URL:  url,
 		}
 	}
 
+	// GitSource names are like "git (https://github.com/...)"
+	if len(name) > 4 && name[:4] == "git " {
+		url := name[5 : len(name)-1] // Remove "git (" and ")"
+		log.Debugf("Git URL: %s", url)
+		return &berkshelf.SourceLocation{
+			Type: "git",
+			URL:  url,
+		}
+	}
+
+	// PathSource names are like "path (/local/path)"
+	if len(name) > 5 && name[:5] == "path " {
+		path := name[6 : len(name)-1] // Remove "path (" and ")"
+		log.Debugf("Path: %s", path)
+		return &berkshelf.SourceLocation{
+			Type: "path",
+			Path: path,
+		}
+	}
+
 	// Default fallback
+	log.Debugf("Unknown source type, defaulting to supermarket: %s", name)
 	return &berkshelf.SourceLocation{
 		Type: "supermarket",
 		URL:  "https://supermarket.chef.io",
