@@ -3,9 +3,12 @@ package source
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/go-git/go-git/v5"
@@ -130,19 +133,14 @@ func (g *GitSource) clone(ctx context.Context, name string) (*git.Repository, er
 	repo, err := git.PlainOpen(cacheDir)
 	if err == nil {
 		// Repository exists, try to fetch updates
-		w, err := repo.Worktree()
-		if err != nil {
-			return nil, fmt.Errorf("getting worktree: %w", err)
-		}
-
-		err = w.Pull(&git.PullOptions{
+		err = repo.Fetch(&git.FetchOptions{
 			RemoteName: "origin",
 			Auth:       g.auth,
 		})
 		if err != nil && err != git.NoErrAlreadyUpToDate {
-			// If pull fails, continue with existing clone
+			// If fetch fails, continue with existing clone
+			log.Debugf("Failed to fetch updates for %s: %v", name, err)
 		}
-
 		return repo, nil
 	}
 
@@ -191,11 +189,32 @@ func (g *GitSource) checkout(repo *git.Repository) error {
 	// Try to resolve the reference
 	hash, err := repo.ResolveRevision(plumbing.Revision(checkoutRef))
 	if err != nil {
-		// Try alternative branch name
+		// If it's a branch that doesn't exist locally, try remote reference
+		if g.branch != "" {
+			remoteRef := "refs/remotes/origin/" + g.branch
+			hash, err = repo.ResolveRevision(plumbing.Revision(remoteRef))
+			if err == nil {
+				// Create local branch tracking the remote branch
+				branchRef := plumbing.NewBranchReferenceName(g.branch)
+				ref := plumbing.NewHashReference(branchRef, *hash)
+				err = repo.Storer.SetReference(ref)
+				if err != nil {
+					log.Debugf("Failed to create local branch %s: %v", g.branch, err)
+				}
+				checkoutRef = "refs/heads/" + g.branch
+			}
+		}
+
+		// Try alternative default branch names
 		if checkoutRef == "refs/heads/master" {
 			checkoutRef = "refs/heads/main"
 			hash, err = repo.ResolveRevision(plumbing.Revision(checkoutRef))
+			if err != nil {
+				// Try remote main
+				hash, err = repo.ResolveRevision(plumbing.Revision("refs/remotes/origin/main"))
+			}
 		}
+
 		if err != nil {
 			return fmt.Errorf("resolving ref %s: %w", checkoutRef, err)
 		}
@@ -323,6 +342,99 @@ func (g *GitSource) FetchCookbook(ctx context.Context, name string, version *ber
 	}
 
 	return cookbook, nil
+}
+
+// DownloadAndExtractCookbook copies the cookbook files from the Git cache to the target directory.
+func (g *GitSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
+	// Ensure the cookbook is cloned and at the right version
+	repo, err := g.clone(ctx, cookbook.Name)
+	if err != nil {
+		return fmt.Errorf("cloning repository: %w", err)
+	}
+
+	// Checkout the appropriate version
+	if cookbook.Version.String() != "0.0.0" {
+		// This is a real version tag
+		g.tag = cookbook.Version.String()
+	}
+
+	if err := g.checkout(repo); err != nil {
+		return fmt.Errorf("checking out version: %w", err)
+	}
+
+	// Get the source directory (repository root)
+	w, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("getting worktree: %w", err)
+	}
+
+	sourceDir := w.Filesystem.Root()
+
+	// Create target directory
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("creating target directory: %w", err)
+	}
+
+	// Copy all files from source to target
+	err = filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip .git directory
+		if strings.Contains(path, ".git") {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Calculate relative path
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(targetDir, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+
+		// Copy file
+		return copyFile(path, targetPath, info.Mode())
+	})
+
+	if err != nil {
+		return fmt.Errorf("copying cookbook files: %w", err)
+	}
+
+	// Update cookbook path
+	cookbook.Path = targetDir
+
+	return nil
+}
+
+// copyFile copies a file from src to dst with the given mode.
+func copyFile(src, dst string, mode os.FileMode) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, mode)
 }
 
 // Search is not implemented for Git sources.

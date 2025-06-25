@@ -14,10 +14,10 @@ import (
 // SetupSourcesFromBerksfile sets up the source manager with sources from the Berksfile
 func SetupSourcesFromBerksfile(berks *berksfile.Berksfile) (*source.Manager, error) {
 	sourceManager := source.NewManager()
+	factory := source.NewFactory()
 
 	// Add sources from Berksfile
 	for _, sourceURL := range berks.Sources {
-		factory := source.NewFactory()
 		src, err := factory.CreateFromURL(sourceURL)
 		if err != nil {
 			log.Warnf("failed to create source from %s: %v", sourceURL, err)

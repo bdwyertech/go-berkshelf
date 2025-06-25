@@ -24,6 +24,9 @@ type CookbookSource interface {
 	// FetchMetadata downloads just the metadata for a cookbook version.
 	FetchMetadata(ctx context.Context, name string, version *berkshelf.Version) (*berkshelf.Metadata, error)
 
+	// DownloadAndExtractCookbook downloads the cookbook files and extracts them to the specified directory.
+	DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error
+
 	// Search returns cookbooks matching the query (optional, may return ErrNotImplemented).
 	Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error)
 }

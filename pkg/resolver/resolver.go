@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -142,13 +143,45 @@ func (r *DefaultResolver) findBestVersion(ctx context.Context, req *Requirement)
 	var bestVersion *berkshelf.Version
 	var bestSource source.CookbookSource
 
-	// Try each source in priority order
-	for _, src := range r.sources {
-		// Skip if requirement specifies a different source
-		if req.Source != nil && !sourceMatches(src, req.Source) {
-			continue
+	// If requirement specifies a specific source, create and use only that source
+	if req.Source != nil {
+		log.Debugf("Creating cookbook-specific source for %s: %s %s", req.Name, req.Source.Type, req.Source.URL)
+		factory := source.NewFactory()
+		specificSource, err := factory.CreateFromLocation(req.Source)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create specific source for %s: %w", req.Name, err)
 		}
 
+		// Get available versions from the specific source
+		versions, err := r.getVersions(ctx, specificSource, req.Name)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get versions from specific source: %w", err)
+		}
+
+		// Find the best version that satisfies the constraint
+		for _, v := range versions {
+			// Skip if doesn't satisfy constraint
+			if req.Constraint != nil && !req.Constraint.Check(v) {
+				continue
+			}
+
+			// Use the highest version that satisfies
+			if bestVersion == nil || v.GreaterThan(bestVersion) {
+				bestVersion = v
+				bestSource = specificSource
+			}
+		}
+
+		if bestVersion == nil {
+			return nil, nil, fmt.Errorf("no version found in specific source that satisfies constraint %s", req.Constraint)
+		}
+
+		return bestVersion, bestSource, nil
+	}
+
+	// Use global sources for cookbooks without specific sources
+	log.Debugf("Using global sources for %s", req.Name)
+	for _, src := range r.sources {
 		// Get available versions from this source
 		versions, err := r.getVersions(ctx, src, req.Name)
 		if err != nil {
@@ -229,9 +262,19 @@ func (r *DefaultResolver) fetchCookbook(ctx context.Context, name string, versio
 
 // sourceMatches checks if a source matches the required source location
 func sourceMatches(src source.CookbookSource, loc *berkshelf.SourceLocation) bool {
-	// Since sources don't expose their location, we'll need to implement this differently
-	// For now, we'll just return true to allow all sources
-	// TODO: Implement proper source matching
+	if src == nil || loc == nil {
+		fmt.Printf("DEBUG: sourceMatches: src or loc is nil (src: %v, loc: %v)\n", src != nil, loc != nil)
+		return false
+	}
+
+	source := strings.Fields(src.Name())
+
+	if source[0] != loc.Type {
+		return false
+	}
+	if source[1][1:len(source[1])-1] != loc.URL {
+		return false
+	}
 	return true
 }
 

@@ -1,15 +1,10 @@
 package vendor
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
@@ -151,102 +146,14 @@ func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, ve
 			continue // Try next source
 		}
 
-		// Check if this is a supermarket source with tarball URL
-		if cookbook.TarballURL != "" {
-			if err := downloadAndExtractTarball(ctx, cookbook.TarballURL, targetDir); err == nil {
-				return nil
-			}
-			lastErr = fmt.Errorf("tarball download failed: %w", err)
+		if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err == nil {
+			return nil
 		}
+		lastErr = fmt.Errorf("source %s download failed: %w", src.Name(), err)
 	}
 
 	if lastErr != nil {
 		return fmt.Errorf("failed to download cookbook %s: %w", cookbookName, lastErr)
 	}
 	return fmt.Errorf("failed to download cookbook %s from any source", cookbookName)
-}
-
-// downloadAndExtractTarball downloads and extracts a cookbook tarball
-func downloadAndExtractTarball(ctx context.Context, tarballURL, targetDir string) error {
-	// Create HTTP request with context
-	req, err := http.NewRequestWithContext(ctx, "GET", tarballURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Download the tarball
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to download tarball: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download tarball: HTTP %d", resp.StatusCode)
-	}
-
-	// Create a gzip reader
-	gzReader, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to create gzip reader: %w", err)
-	}
-	defer gzReader.Close()
-
-	// Create a tar reader
-	tarReader := tar.NewReader(gzReader)
-
-	// Extract files
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read tar: %w", err)
-		}
-
-		// Skip directories and non-regular files
-		if header.Typeflag != tar.TypeReg {
-			continue
-		}
-
-		// Remove the top-level directory from the path
-		// Supermarket tarballs have a structure like "cookbook-name-version/recipes/default.rb"
-		pathParts := strings.Split(header.Name, "/")
-		if len(pathParts) <= 1 {
-			continue
-		}
-
-		// Join all parts except the first (which is the cookbook directory)
-		relativePath := filepath.Join(pathParts[1:]...)
-		if relativePath == "" {
-			continue
-		}
-
-		targetPath := filepath.Join(targetDir, relativePath)
-
-		// Create directory structure
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-			return fmt.Errorf("failed to create directory: %w", err)
-		}
-
-		// Create and write the file
-		outFile, err := os.Create(targetPath)
-		if err != nil {
-			return fmt.Errorf("failed to create file %s: %w", targetPath, err)
-		}
-
-		_, err = io.Copy(outFile, tarReader)
-		outFile.Close()
-		if err != nil {
-			return fmt.Errorf("failed to write file %s: %w", targetPath, err)
-		}
-
-		// Set file permissions
-		if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
-			// Continue on permission errors
-		}
-	}
-
-	return nil
 }

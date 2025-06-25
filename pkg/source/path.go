@@ -348,6 +348,55 @@ func (p *PathSource) FetchCookbook(ctx context.Context, name string, version *be
 	}, nil
 }
 
+// DownloadAndExtractCookbook copies the cookbook files from the local path to the target directory.
+func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
+	sourceDir := cookbook.Path
+	if sourceDir == "" {
+		// Find the cookbook path if not already set
+		cookbookPath, err := p.findCookbookPath(cookbook.Name)
+		if err != nil {
+			return fmt.Errorf("finding cookbook path: %w", err)
+		}
+		sourceDir = cookbookPath
+	}
+
+	// Create target directory
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("creating target directory: %w", err)
+	}
+
+	// Copy all files from source to target
+	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Calculate relative path
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(targetDir, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+
+		// Copy file
+		return copyFile(path, targetPath, info.Mode())
+	})
+
+	if err != nil {
+		return fmt.Errorf("copying cookbook files: %w", err)
+	}
+
+	// Update cookbook path
+	cookbook.Path = targetDir
+
+	return nil
+}
+
 // Search is not implemented for path sources.
 func (p *PathSource) Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error) {
 	return nil, ErrNotImplemented

@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/go-chef/chef v0.30.1
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/olekukonko/tablewriter v1.0.7
 	github.com/sirupsen/logrus v1.9.3
