@@ -29,6 +29,15 @@ type CookbookSource interface {
 
 	// Search returns cookbooks matching the query (optional, may return ErrNotImplemented).
 	Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error)
+
+	// GetSourceLocation returns the source location for this source
+	GetSourceLocation() *berkshelf.SourceLocation
+
+	// GetSourceType returns the source type
+	GetSourceType() string
+
+	// GetSourceURL returns the source URL
+	GetSourceURL() string
 }
 
 // SourceFactory creates a CookbookSource from a SourceLocation.

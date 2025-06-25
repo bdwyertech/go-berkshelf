@@ -95,7 +95,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requireme
 			}
 		} else {
 			// Create source location from the actual source that provided the cookbook
-			sourceLocation = createSourceLocationFromSource(source)
+			sourceLocation = source.GetSourceLocation()
 		}
 
 		// Add to resolution
@@ -335,90 +335,3 @@ func (c *ResolutionCache) Clear() {
 	c.metadata = make(map[string]*berkshelf.Cookbook)
 }
 
-// createSourceLocationFromSource creates a SourceLocation from a CookbookSource
-func createSourceLocationFromSource(src source.CookbookSource) *berkshelf.SourceLocation {
-	if src == nil {
-		return nil
-	}
-
-	// Extract URL from source name - this is a bit hacky but works for our current sources
-	name := src.Name()
-
-	log.Debugf("Creating source location from source: %s", name)
-
-	// ChefServerSource names are like "chef-server (https://chef.example.com/organizations/myorg)"
-	if len(name) > 12 && name[:12] == "chef-server " {
-		url := name[13 : len(name)-1] // Remove "chef-server (" and ")"
-		log.Debugf("Chef server URL: %s", url)
-		return &berkshelf.SourceLocation{
-			Type: "chef_server",
-			URL:  url,
-		}
-	}
-
-	// SupermarketSource names are like "supermarket (https://example.com)"
-	if len(name) > 12 && name[:12] == "supermarket " {
-		url := name[13 : len(name)-1] // Remove "supermarket (" and ")"
-		log.Debugf("Supermarket URL: %s", url)
-		return &berkshelf.SourceLocation{
-			Type: "supermarket",
-			URL:  url,
-		}
-	}
-
-	// GitSource names are like "git (https://github.com/...)"
-	if len(name) > 4 && name[:4] == "git " {
-		url := name[5 : len(name)-1] // Remove "git (" and ")"
-		log.Debugf("Git URL: %s", url)
-
-		// Try to extract Git-specific options if this is a GitSource
-		sourceLocation := &berkshelf.SourceLocation{
-			Type: "git",
-			URL:  url,
-		}
-
-		// Use type assertion to get Git-specific options
-		if gitSrc, ok := src.(*source.GitSource); ok {
-			options := make(map[string]any)
-
-			// Extract Git options from the source
-			if gitSrc.GetBranch() != "" {
-				options["branch"] = gitSrc.GetBranch()
-			}
-			if gitSrc.GetTag() != "" {
-				options["tag"] = gitSrc.GetTag()
-			}
-			if gitSrc.GetRef() != "" {
-				sourceLocation.Ref = gitSrc.GetRef()
-			}
-			if gitSrc.GetRevision() != "" {
-				options["revision"] = gitSrc.GetRevision()
-			}
-
-			if len(options) > 0 {
-				sourceLocation.Options = options
-			}
-
-			log.Debugf("Git source options: %+v", options)
-		}
-
-		return sourceLocation
-	}
-
-	// PathSource names are like "path (/local/path)"
-	if len(name) > 5 && name[:5] == "path " {
-		path := name[6 : len(name)-1] // Remove "path (" and ")"
-		log.Debugf("Path: %s", path)
-		return &berkshelf.SourceLocation{
-			Type: "path",
-			Path: path,
-		}
-	}
-
-	// Default fallback
-	log.Debugf("Unknown source type, defaulting to supermarket: %s", name)
-	return &berkshelf.SourceLocation{
-		Type: "supermarket",
-		URL:  "https://supermarket.chef.io",
-	}
-}

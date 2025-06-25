@@ -455,3 +455,38 @@ func copyFile(src, dst string, mode os.FileMode) error {
 func (g *GitSource) Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error) {
 	return nil, ErrNotImplemented
 }
+
+// GetSourceLocation returns the source location for this git source
+func (g *GitSource) GetSourceLocation() *berkshelf.SourceLocation {
+	location := &berkshelf.SourceLocation{
+		Type: "git",
+		URL:  g.uri,
+		Ref:  g.ref,
+	}
+	
+	// Add Git-specific options
+	if g.branch != "" || g.tag != "" || g.revision != "" {
+		location.Options = make(map[string]any)
+		if g.branch != "" {
+			location.Options["branch"] = g.branch
+		}
+		if g.tag != "" {
+			location.Options["tag"] = g.tag
+		}
+		if g.revision != "" {
+			location.Options["revision"] = g.revision
+		}
+	}
+	
+	return location
+}
+
+// GetSourceType returns the source type
+func (g *GitSource) GetSourceType() string {
+	return "git"
+}
+
+// GetSourceURL returns the source URL
+func (g *GitSource) GetSourceURL() string {
+	return g.uri
+}

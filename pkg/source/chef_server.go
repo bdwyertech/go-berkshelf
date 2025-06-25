@@ -327,3 +327,21 @@ func (s *ChefServerSource) Search(ctx context.Context, query string) ([]*berkshe
 
 	return results, nil
 }
+
+// GetSourceLocation returns the source location for this chef server source
+func (s *ChefServerSource) GetSourceLocation() *berkshelf.SourceLocation {
+	return &berkshelf.SourceLocation{
+		Type: "chef_server",
+		URL:  s.baseURL,
+	}
+}
+
+// GetSourceType returns the source type
+func (s *ChefServerSource) GetSourceType() string {
+	return "chef_server"
+}
+
+// GetSourceURL returns the source URL
+func (s *ChefServerSource) GetSourceURL() string {
+	return s.baseURL
+}

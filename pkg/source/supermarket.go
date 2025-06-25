@@ -428,3 +428,21 @@ func (s *SupermarketSource) Search(ctx context.Context, query string) ([]*berksh
 
 	return cookbooks, nil
 }
+
+// GetSourceLocation returns the source location for this supermarket source
+func (s *SupermarketSource) GetSourceLocation() *berkshelf.SourceLocation {
+	return &berkshelf.SourceLocation{
+		Type: "supermarket",
+		URL:  s.baseURL,
+	}
+}
+
+// GetSourceType returns the source type
+func (s *SupermarketSource) GetSourceType() string {
+	return "supermarket"
+}
+
+// GetSourceURL returns the source URL
+func (s *SupermarketSource) GetSourceURL() string {
+	return s.baseURL
+}

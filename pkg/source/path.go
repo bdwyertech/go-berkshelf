@@ -401,3 +401,21 @@ func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *b
 func (p *PathSource) Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error) {
 	return nil, ErrNotImplemented
 }
+
+// GetSourceLocation returns the source location for this path source
+func (p *PathSource) GetSourceLocation() *berkshelf.SourceLocation {
+	return &berkshelf.SourceLocation{
+		Type: "path",
+		Path: p.basePath,
+	}
+}
+
+// GetSourceType returns the source type
+func (p *PathSource) GetSourceType() string {
+	return "path"
+}
+
+// GetSourceURL returns the source URL (empty for path sources)
+func (p *PathSource) GetSourceURL() string {
+	return ""
+}
