@@ -7,6 +7,23 @@ import (
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
+func (m *mockSource) GetSourceLocation() *berkshelf.SourceLocation {
+	return &berkshelf.SourceLocation{
+		Type: m.GetSourceType(),
+		URL:  m.GetSourceURL(),
+	}
+}
+
+// Implement GetSourceType to satisfy source.CookbookSource interface
+func (m *mockSource) GetSourceType() string {
+	return "mock"
+}
+
+// Implement GetSourceURL to satisfy source.CookbookSource interface
+func (m *mockSource) GetSourceURL() string {
+	return "mock:///" + m.name
+}
+
 func TestConstraintSolverConflictingConstraints(t *testing.T) {
 	// Create mock source
 	mockSrc := newMockSource("test", 100)
