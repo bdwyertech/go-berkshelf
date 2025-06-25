@@ -28,7 +28,7 @@ type GitSource struct {
 }
 
 // NewGitSource creates a new Git source.
-func NewGitSource(uri string, opts SourceLocation) (*GitSource, error) {
+func NewGitSource(uri string, opts *berkshelf.SourceLocation) (*GitSource, error) {
 	if uri == "" {
 		return nil, fmt.Errorf("git source requires URI")
 	}
@@ -41,10 +41,10 @@ func NewGitSource(uri string, opts SourceLocation) (*GitSource, error) {
 
 	source := &GitSource{
 		uri:      uri,
-		branch:   opts.Branch,
-		tag:      opts.Tag,
+		branch:   getStringOption(opts.Options, "branch"),
+		tag:      getStringOption(opts.Options, "tag"),
 		ref:      opts.Ref,
-		revision: opts.Revision,
+		revision: getStringOption(opts.Options, "revision"),
 		cacheDir: filepath.Join(os.TempDir(), "berkshelf-git-cache"),
 		priority: 50, // Lower priority than Supermarket
 	}
@@ -58,7 +58,7 @@ func NewGitSource(uri string, opts SourceLocation) (*GitSource, error) {
 }
 
 // setupAuth configures authentication based on the URI and options.
-func (g *GitSource) setupAuth(opts SourceLocation) error {
+func (g *GitSource) setupAuth(opts *berkshelf.SourceLocation) error {
 	// Check for SSH URL
 	if strings.HasPrefix(g.uri, "git@") || strings.Contains(g.uri, "ssh://") {
 		// Try to use SSH agent first
@@ -82,8 +82,8 @@ func (g *GitSource) setupAuth(opts SourceLocation) error {
 		}
 	} else if strings.HasPrefix(g.uri, "https://") {
 		// Check for username/password in options
-		if user, ok := opts.Options["username"]; ok {
-			if pass, ok := opts.Options["password"]; ok {
+		if user := getStringOption(opts.Options, "username"); user != "" {
+			if pass := getStringOption(opts.Options, "password"); pass != "" {
 				g.auth = &http.BasicAuth{
 					Username: user,
 					Password: pass,
@@ -91,7 +91,7 @@ func (g *GitSource) setupAuth(opts SourceLocation) error {
 			}
 		}
 		// Could also check for token-based auth
-		if token, ok := opts.Options["token"]; ok {
+		if token := getStringOption(opts.Options, "token"); token != "" {
 			g.auth = &http.BasicAuth{
 				Username: "token",
 				Password: token,

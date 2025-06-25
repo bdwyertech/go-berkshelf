@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
 // Factory creates CookbookSource instances from Berksfile entries.
@@ -53,42 +54,37 @@ func (f *Factory) CreateFromBerksfile(bf *berksfile.Berksfile) (*Manager, error)
 }
 
 // CreateFromLocation creates a source from a SourceLocation.
-func (f *Factory) CreateFromLocation(location berksfile.SourceLocation) (CookbookSource, error) {
+func (f *Factory) CreateFromLocation(location *berkshelf.SourceLocation) (CookbookSource, error) {
+	if location == nil {
+		return nil, fmt.Errorf("location cannot be nil")
+	}
+
 	switch location.Type {
-	case berksfile.SourceGit:
-		opts := SourceLocation{
-			Type:     string(location.Type),
-			URI:      location.URI,
-			Branch:   location.Options["branch"],
-			Tag:      location.Options["tag"],
-			Ref:      location.Options["ref"],
-			Revision: location.Options["revision"],
-			Options:  location.Options,
-		}
-		return NewGitSource(location.URI, opts)
+	case "git":
+		// Git source - pass location directly since NewGitSource extracts what it needs
+		return NewGitSource(location.URL, location)
 
-	case "github": // Handle github as a string since it may not be a const
+	case "github":
 		// GitHub is a special case of git
-		opts := SourceLocation{
-			Type:     "github",
-			URI:      location.URI,
-			Branch:   location.Options["branch"],
-			Tag:      location.Options["tag"],
-			Ref:      location.Options["ref"],
-			Revision: location.Options["revision"],
-			Options:  location.Options,
+		// Create a new location with github type
+		githubLocation := &berkshelf.SourceLocation{
+			Type:    "github",
+			URL:     location.URL,
+			Ref:     location.Ref,
+			Path:    location.Path,
+			Options: location.Options,
 		}
-		return NewGitSource(location.URI, opts)
+		return NewGitSource(location.URL, githubLocation)
 
-	case berksfile.SourcePath:
-		path := location.Options["path"]
+	case "path":
+		path := location.Path
 		if path == "" {
-			path = location.URI
+			path = location.URL
 		}
 		return NewPathSource(path)
 
-	case berksfile.SourceSupermarket:
-		url := location.URI
+	case "supermarket":
+		url := location.URL
 		if url == "" {
 			url = "https://supermarket.chef.io"
 		}
@@ -97,6 +93,19 @@ func (f *Factory) CreateFromLocation(location berksfile.SourceLocation) (Cookboo
 	default:
 		return nil, fmt.Errorf("unknown source type: %s", location.Type)
 	}
+}
+
+// getStringOption safely extracts a string value from a map[string]any
+func getStringOption(options map[string]any, key string) string {
+	if options == nil {
+		return ""
+	}
+	if v, ok := options[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }
 
 // createFromURL creates a source from a URL string.
@@ -109,7 +118,11 @@ func (f *Factory) createFromURL(url string) (CookbookSource, error) {
 
 	if strings.HasPrefix(url, "git://") || strings.HasPrefix(url, "git@") {
 		// Git source
-		opts := SourceLocation{Type: "git"}
+		opts := &berkshelf.SourceLocation{
+			Type:    "git",
+			URL:     url,
+			Options: make(map[string]any),
+		}
 		return NewGitSource(url, opts)
 	}
 
@@ -133,7 +146,7 @@ func (f *Factory) CreateSourceForCookbook(cookbook *berksfile.CookbookDef) ([]Co
 	sources := make([]CookbookSource, 0)
 
 	// If cookbook has a specific source, use that
-	if cookbook.Source.Type != "" {
+	if cookbook.Source != nil && cookbook.Source.Type != "" {
 		source, err := f.CreateFromLocation(cookbook.Source)
 		if err != nil {
 			return nil, err

@@ -4,32 +4,11 @@ import (
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
-// SourceType represents the type of cookbook source
-type SourceType string
-
-const (
-	// SourceSupermarket represents a Chef Supermarket source
-	SourceSupermarket SourceType = "supermarket"
-	// SourceGit represents a Git repository source
-	SourceGit SourceType = "git"
-	// SourcePath represents a local filesystem path
-	SourcePath SourceType = "path"
-	// SourceChefServer represents a Chef Server source
-	SourceChefServer SourceType = "chef_server"
-)
-
-// SourceLocation represents where a cookbook comes from
-type SourceLocation struct {
-	Type    SourceType
-	URI     string
-	Options map[string]string // branch, tag, ref, etc.
-}
-
 // CookbookDef represents a cookbook definition in a Berksfile
 type CookbookDef struct {
 	Name       string
 	Constraint *berkshelf.Constraint
-	Source     SourceLocation
+	Source     *berkshelf.SourceLocation
 	Groups     []string
 }
 

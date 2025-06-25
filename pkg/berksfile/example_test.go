@@ -54,8 +54,15 @@ end
 		if cookbook.Constraint != nil {
 			fmt.Printf(" (%s)", cookbook.Constraint)
 		}
-		if cookbook.Source.Type != "" {
-			fmt.Printf(" [%s: %s]", cookbook.Source.Type, cookbook.Source.URI)
+		if cookbook.Source != nil && cookbook.Source.Type != "" {
+			sourceInfo := fmt.Sprintf(" [%s", cookbook.Source.Type)
+			if cookbook.Source.URL != "" {
+				sourceInfo += fmt.Sprintf(": %s", cookbook.Source.URL)
+			} else if cookbook.Source.Path != "" {
+				sourceInfo += fmt.Sprintf(": %s", cookbook.Source.Path)
+			}
+			sourceInfo += "]"
+			fmt.Printf("%s", sourceInfo)
 		}
 		if len(cookbook.Groups) > 0 {
 			fmt.Printf(" groups: %v", cookbook.Groups)

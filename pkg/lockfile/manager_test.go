@@ -7,6 +7,7 @@ import (
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyer/go-berkshelf/pkg/resolver"
+	"github.com/bdwyer/go-berkshelf/pkg/source"
 )
 
 func TestNewManager(t *testing.T) {
@@ -80,10 +81,10 @@ func TestManagerSaveAndLoad(t *testing.T) {
 
 	sourceInfo := &SourceInfo{
 		Type: "supermarket",
-		URL:  "https://supermarket.chef.io",
+		URL:  source.PUBLIC_SUPERMARKET,
 	}
 
-	originalLockFile.AddCookbook("https://supermarket.chef.io", cookbook, sourceInfo)
+	originalLockFile.AddCookbook(source.PUBLIC_SUPERMARKET, cookbook, sourceInfo)
 
 	// Save the lock file
 	if err := manager.Save(originalLockFile); err != nil {

@@ -3,6 +3,8 @@ package berksfile
 import (
 	"fmt"
 	"strings"
+
+	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
 // Parser parses tokenized Berksfile content into a structured representation
@@ -145,8 +147,8 @@ func (p *Parser) parseCookbook() (*CookbookDef, error) {
 }
 
 func (p *Parser) parseCookbookOptions(cookbook *CookbookDef) error {
-	source := SourceLocation{
-		Options: make(map[string]string),
+	source := &berkshelf.SourceLocation{
+		Options: make(map[string]any),
 	}
 
 	for p.position < len(p.tokens) {
@@ -176,14 +178,20 @@ func (p *Parser) parseCookbookOptions(cookbook *CookbookDef) error {
 			// Handle specific source types
 			switch key {
 			case "git":
-				source.Type = SourceGit
-				source.URI = value
+				source.Type = "git"
+				source.URL = value
 			case "path":
-				source.Type = SourcePath
-				source.URI = value
+				source.Type = "path"
+				source.Path = value
 			case "github":
-				source.Type = SourceGit
-				source.URI = fmt.Sprintf("https://github.com/%s.git", value)
+				source.Type = "git"
+				source.URL = fmt.Sprintf("https://github.com/%s.git", value)
+			case "ref":
+				source.Ref = value
+			case "branch":
+				source.Options["branch"] = value
+			case "tag":
+				source.Options["tag"] = value
 			default:
 				source.Options[key] = value
 			}

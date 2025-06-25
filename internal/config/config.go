@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/bdwyer/go-berkshelf/pkg/source"
 )
 
 // Config represents berkshelf configuration
@@ -119,7 +121,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		CachePath: filepath.Join(home, ".berkshelf", "cookbooks"),
 		DefaultSources: []string{
-			"https://supermarket.chef.io",
+			source.PUBLIC_SUPERMARKET,
 		},
 		SSLVerify:   true,
 		APITimeout:  30,

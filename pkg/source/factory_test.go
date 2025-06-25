@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
 func TestFactory_CreateFromBerksfile(t *testing.T) {
@@ -62,25 +63,25 @@ func TestFactory_CreateFromLocation(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		location berksfile.SourceLocation
+		location *berkshelf.SourceLocation
 		wantType string
 		wantErr  bool
 	}{
 		{
 			name: "supermarket",
-			location: berksfile.SourceLocation{
-				Type: berksfile.SourceSupermarket,
-				URI:  "https://supermarket.chef.io",
+			location: &berkshelf.SourceLocation{
+				Type: "supermarket",
+				URL:  "https://supermarket.chef.io",
 			},
 			wantType: "supermarket",
 			wantErr:  false,
 		},
 		{
 			name: "git",
-			location: berksfile.SourceLocation{
-				Type: berksfile.SourceGit,
-				URI:  "https://github.com/user/cookbook.git",
-				Options: map[string]string{
+			location: &berkshelf.SourceLocation{
+				Type: "git",
+				URL:  "https://github.com/user/cookbook.git",
+				Options: map[string]any{
 					"branch": "master",
 				},
 			},
@@ -89,18 +90,18 @@ func TestFactory_CreateFromLocation(t *testing.T) {
 		},
 		{
 			name: "github",
-			location: berksfile.SourceLocation{
+			location: &berkshelf.SourceLocation{
 				Type: "github",
-				URI:  "user/cookbook",
+				URL:  "user/cookbook",
 			},
 			wantType: "git",
 			wantErr:  false,
 		},
 		{
 			name: "unknown",
-			location: berksfile.SourceLocation{
+			location: &berkshelf.SourceLocation{
 				Type: "unknown",
-				URI:  "something",
+				URL:  "something",
 			},
 			wantType: "",
 			wantErr:  true,

@@ -92,11 +92,14 @@ func TestParser_BasicBerksfile(t *testing.T) {
 				if cookbook.Name != "private" {
 					t.Errorf("expected cookbook name 'private', got %q", cookbook.Name)
 				}
-				if cookbook.Source.Type != SourceGit {
+				if cookbook.Source == nil {
+					t.Fatal("expected source to be set")
+				}
+				if cookbook.Source.Type != "git" {
 					t.Errorf("expected source type 'git', got %q", cookbook.Source.Type)
 				}
-				if cookbook.Source.URI != "git@github.com:user/repo.git" {
-					t.Errorf("expected source URI 'git@github.com:user/repo.git', got %q", cookbook.Source.URI)
+				if cookbook.Source.URL != "git@github.com:user/repo.git" {
+					t.Errorf("expected source URL 'git@github.com:user/repo.git', got %q", cookbook.Source.URL)
 				}
 			},
 		},
@@ -108,11 +111,14 @@ func TestParser_BasicBerksfile(t *testing.T) {
 					t.Fatalf("expected 1 cookbook, got %d", len(b.Cookbooks))
 				}
 				cookbook := b.Cookbooks[0]
-				if cookbook.Source.Type != SourceGit {
+				if cookbook.Source == nil {
+					t.Fatal("expected source to be set")
+				}
+				if cookbook.Source.Type != "git" {
 					t.Errorf("expected source type 'git', got %q", cookbook.Source.Type)
 				}
-				if cookbook.Source.URI != "https://github.com/user/repo.git" {
-					t.Errorf("expected source URI 'https://github.com/user/repo.git', got %q", cookbook.Source.URI)
+				if cookbook.Source.URL != "https://github.com/user/repo.git" {
+					t.Errorf("expected source URL 'https://github.com/user/repo.git', got %q", cookbook.Source.URL)
 				}
 			},
 		},
@@ -124,11 +130,14 @@ func TestParser_BasicBerksfile(t *testing.T) {
 					t.Fatalf("expected 1 cookbook, got %d", len(b.Cookbooks))
 				}
 				cookbook := b.Cookbooks[0]
-				if cookbook.Source.Type != SourcePath {
+				if cookbook.Source == nil {
+					t.Fatal("expected source to be set")
+				}
+				if cookbook.Source.Type != "path" {
 					t.Errorf("expected source type 'path', got %q", cookbook.Source.Type)
 				}
-				if cookbook.Source.URI != "../myapp" {
-					t.Errorf("expected source URI '../myapp', got %q", cookbook.Source.URI)
+				if cookbook.Source.Path != "../myapp" {
+					t.Errorf("expected source path '../myapp', got %q", cookbook.Source.Path)
 				}
 			},
 		},
@@ -140,8 +149,11 @@ func TestParser_BasicBerksfile(t *testing.T) {
 					t.Fatalf("expected 1 cookbook, got %d", len(b.Cookbooks))
 				}
 				cookbook := b.Cookbooks[0]
-				if cookbook.Source.Options["branch"] != "develop" {
-					t.Errorf("expected branch 'develop', got %q", cookbook.Source.Options["branch"])
+				if cookbook.Source == nil {
+					t.Fatal("expected source to be set")
+				}
+				if branch, ok := cookbook.Source.Options["branch"]; !ok || branch != "develop" {
+					t.Errorf("expected branch 'develop', got %v", branch)
 				}
 			},
 		},
@@ -283,10 +295,13 @@ end
 	if private == nil {
 		t.Fatal("private cookbook not found")
 	}
-	if private.Source.Type != SourceGit {
+	if private.Source == nil {
+		t.Fatal("expected private cookbook to have source")
+	}
+	if private.Source.Type != "git" {
 		t.Error("private cookbook should have git source")
 	}
-	if private.Source.Options["branch"] != "master" {
+	if branch, ok := private.Source.Options["branch"]; !ok || branch != "master" {
 		t.Error("private cookbook should have master branch")
 	}
 

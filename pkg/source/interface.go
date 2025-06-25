@@ -28,31 +28,9 @@ type CookbookSource interface {
 	Search(ctx context.Context, query string) ([]*berkshelf.Cookbook, error)
 }
 
-// SourceLocation represents where a cookbook can be found.
-type SourceLocation struct {
-	Type string // "supermarket", "git", "github", "path", "chef_server"
-	URI  string // URL, path, or identifier
-
-	// Git-specific options
-	Branch   string
-	Tag      string
-	Ref      string
-	Revision string
-
-	// Path-specific options
-	Path string
-
-	// Chef Server options
-	NodeName  string
-	ClientKey string
-
-	// Additional options
-	Options map[string]string
-}
-
 // SourceFactory creates a CookbookSource from a SourceLocation.
 type SourceFactory interface {
-	CreateSource(location SourceLocation) (CookbookSource, error)
+	CreateSource(location *berkshelf.SourceLocation) (CookbookSource, error)
 }
 
 // Manager coordinates multiple sources.

@@ -22,11 +22,11 @@ func TestSupermarketSource_ListVersions(t *testing.T) {
 			Name:          "nginx",
 			LatestVersion: "2.7.6",
 			Versions: []string{
-				"2.7.6",
-				"2.7.4",
-				"2.7.2",
-				"2.6.0",
-				"2.5.0",
+				"http://example.com/api/v1/cookbooks/nginx/versions/2.7.6",
+				"http://example.com/api/v1/cookbooks/nginx/versions/2.7.4",
+				"http://example.com/api/v1/cookbooks/nginx/versions/2.7.2",
+				"http://example.com/api/v1/cookbooks/nginx/versions/2.6.0",
+				"http://example.com/api/v1/cookbooks/nginx/versions/2.5.0",
 			},
 		}
 
