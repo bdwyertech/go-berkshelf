@@ -136,7 +136,24 @@ func (v *Vendorer) Vendor(ctx context.Context) (*Result, error) {
 
 // downloadCookbook downloads a specific cookbook version to the target directory
 func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, version *berkshelf.Version, targetDir string) error {
-	// Try each source until one succeeds
+	// First try to find the cookbook-specific source from the lock file
+	for _, lockSource := range v.lockFile.Sources {
+		if lockedCookbook, exists := lockSource.Cookbooks[cookbookName]; exists {
+			// Create source from lock file source info
+			src, err := v.createSourceFromLockFile(lockedCookbook.Source)
+			if err == nil {
+				// Fetch cookbook metadata
+				cookbook, err := src.FetchCookbook(ctx, cookbookName, version)
+				if err == nil {
+					if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err == nil {
+						return nil
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to trying global sources
 	var lastErr error
 	for _, src := range v.sourceManager.GetSources() {
 		// Fetch cookbook metadata
@@ -156,4 +173,32 @@ func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, ve
 		return fmt.Errorf("failed to download cookbook %s: %w", cookbookName, lastErr)
 	}
 	return fmt.Errorf("failed to download cookbook %s from any source", cookbookName)
+}
+
+// createSourceFromLockFile creates a source from lock file source info
+func (v *Vendorer) createSourceFromLockFile(sourceInfo *lockfile.SourceInfo) (source.CookbookSource, error) {
+	if sourceInfo == nil {
+		return nil, fmt.Errorf("no source info provided")
+	}
+
+	// Convert SourceInfo to berkshelf.SourceLocation
+	sourceLocation := &berkshelf.SourceLocation{
+		Type:    sourceInfo.Type,
+		URL:     sourceInfo.URL,
+		Path:    sourceInfo.Path,
+		Ref:     sourceInfo.Ref,
+		Options: make(map[string]any),
+	}
+
+	// Add Git options if present
+	if sourceInfo.Branch != "" {
+		sourceLocation.Options["branch"] = sourceInfo.Branch
+	}
+	if sourceInfo.Tag != "" {
+		sourceLocation.Options["tag"] = sourceInfo.Tag
+	}
+
+	// Create source using factory
+	factory := source.NewFactory()
+	return factory.CreateFromLocation(sourceLocation)
 }

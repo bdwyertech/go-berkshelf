@@ -115,6 +115,26 @@ func (g *GitSource) Priority() int {
 	return g.priority
 }
 
+// GetBranch returns the branch for this Git source.
+func (g *GitSource) GetBranch() string {
+	return g.branch
+}
+
+// GetTag returns the tag for this Git source.
+func (g *GitSource) GetTag() string {
+	return g.tag
+}
+
+// GetRef returns the ref for this Git source.
+func (g *GitSource) GetRef() string {
+	return g.ref
+}
+
+// GetRevision returns the revision for this Git source.
+func (g *GitSource) GetRevision() string {
+	return g.revision
+}
+
 // getCacheDir returns the cache directory for a specific cookbook.
 func (g *GitSource) getCacheDir(name string) string {
 	// Create a safe directory name from the URI
@@ -350,12 +370,6 @@ func (g *GitSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *be
 	repo, err := g.clone(ctx, cookbook.Name)
 	if err != nil {
 		return fmt.Errorf("cloning repository: %w", err)
-	}
-
-	// Checkout the appropriate version
-	if cookbook.Version.String() != "0.0.0" {
-		// This is a real version tag
-		g.tag = cookbook.Version.String()
 	}
 
 	if err := g.checkout(repo); err != nil {

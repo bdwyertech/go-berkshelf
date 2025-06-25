@@ -89,10 +89,7 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 	// Process each resolved cookbook
 	for _, resolvedCookbook := range resolution.Cookbooks {
 		// Determine source information
-		sourceInfo := &SourceInfo{
-			Type: getSourceType(resolvedCookbook.Source),
-			URL:  getSourceURL(resolvedCookbook.Source),
-		}
+		sourceInfo := createSourceInfo(resolvedCookbook.Source)
 
 		// Add to lock file
 		lockFile.AddCookbook(sourceInfo.URL, resolvedCookbook.Cookbook, sourceInfo)
@@ -279,4 +276,50 @@ func getSourceURL(src any) string {
 
 	// Default fallback
 	return source.PUBLIC_SUPERMARKET
+}
+
+// createSourceInfo creates a complete SourceInfo from a source location
+func createSourceInfo(src any) *SourceInfo {
+	if src == nil {
+		return &SourceInfo{
+			Type: "supermarket",
+			URL:  source.PUBLIC_SUPERMARKET,
+		}
+	}
+
+	// Type assert to berkshelf.SourceLocation
+	if sourceLocation, ok := src.(*berkshelf.SourceLocation); ok && sourceLocation != nil {
+		sourceInfo := &SourceInfo{
+			Type: sourceLocation.Type,
+			URL:  sourceLocation.URL,
+			Path: sourceLocation.Path,
+			Ref:  sourceLocation.Ref,
+		}
+
+		// Extract Git options from the Options map
+		if sourceLocation.Options != nil {
+			if branch, ok := sourceLocation.Options["branch"].(string); ok {
+				sourceInfo.Branch = branch
+			}
+			if tag, ok := sourceLocation.Options["tag"].(string); ok {
+				sourceInfo.Tag = tag
+			}
+			if revision, ok := sourceLocation.Options["revision"].(string); ok && sourceInfo.Ref == "" {
+				sourceInfo.Ref = revision
+			}
+		}
+
+		// Set default URL if empty
+		if sourceInfo.URL == "" {
+			sourceInfo.URL = source.PUBLIC_SUPERMARKET
+		}
+
+		return sourceInfo
+	}
+
+	// Default fallback
+	return &SourceInfo{
+		Type: "supermarket",
+		URL:  source.PUBLIC_SUPERMARKET,
+	}
 }

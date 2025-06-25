@@ -86,8 +86,13 @@ func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requireme
 		// Create source location from the actual source that provided the cookbook
 		var sourceLocation *berkshelf.SourceLocation
 		if req.Source != nil {
-			// Use the requirement's specific source if provided
+			// Use the requirement's specific source if provided, but enhance it with actual source info
 			sourceLocation = req.Source
+			// Ensure the source location has all the necessary information from the actual source
+			if sourceLocation.Type == "git" {
+				// The original source location from Berksfile should already have all options preserved
+				log.Debugf("Using original source location with Git options: %+v", sourceLocation.Options)
+			}
 		} else {
 			// Create source location from the actual source that provided the cookbook
 			sourceLocation = createSourceLocationFromSource(source)
@@ -365,10 +370,39 @@ func createSourceLocationFromSource(src source.CookbookSource) *berkshelf.Source
 	if len(name) > 4 && name[:4] == "git " {
 		url := name[5 : len(name)-1] // Remove "git (" and ")"
 		log.Debugf("Git URL: %s", url)
-		return &berkshelf.SourceLocation{
+
+		// Try to extract Git-specific options if this is a GitSource
+		sourceLocation := &berkshelf.SourceLocation{
 			Type: "git",
 			URL:  url,
 		}
+
+		// Use type assertion to get Git-specific options
+		if gitSrc, ok := src.(*source.GitSource); ok {
+			options := make(map[string]any)
+
+			// Extract Git options from the source
+			if gitSrc.GetBranch() != "" {
+				options["branch"] = gitSrc.GetBranch()
+			}
+			if gitSrc.GetTag() != "" {
+				options["tag"] = gitSrc.GetTag()
+			}
+			if gitSrc.GetRef() != "" {
+				sourceLocation.Ref = gitSrc.GetRef()
+			}
+			if gitSrc.GetRevision() != "" {
+				options["revision"] = gitSrc.GetRevision()
+			}
+
+			if len(options) > 0 {
+				sourceLocation.Options = options
+			}
+
+			log.Debugf("Git source options: %+v", options)
+		}
+
+		return sourceLocation
 	}
 
 	// PathSource names are like "path (/local/path)"

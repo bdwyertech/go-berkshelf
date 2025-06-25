@@ -61,6 +61,10 @@ func (m *mockSource) Search(ctx context.Context, query string) ([]*berkshelf.Coo
 	return nil, fmt.Errorf("search not implemented")
 }
 
+func (m *mockSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
+	return fmt.Errorf("download not implemented in mock")
+}
+
 func (m *mockSource) addCookbook(name string, version string, dependencies map[string]string) {
 	v := berkshelf.MustVersion(version)
 
