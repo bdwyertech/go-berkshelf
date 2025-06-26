@@ -195,10 +195,10 @@ func (g *GitSource) checkout(repo *git.Repository) error {
 	var checkoutRef string
 	if g.revision != "" {
 		checkoutRef = g.revision
-	} else if g.tag != "" {
-		checkoutRef = "refs/tags/" + g.tag
 	} else if g.ref != "" {
 		checkoutRef = g.ref
+	} else if g.tag != "" {
+		checkoutRef = "refs/tags/" + g.tag
 	} else if g.branch != "" {
 		checkoutRef = "refs/heads/" + g.branch
 	} else {
@@ -472,7 +472,7 @@ func (g *GitSource) GetSourceLocation() *berkshelf.SourceLocation {
 			location.Options["revision"] = g.revision
 		}
 	}
-	
+
 	return location
 }
 
