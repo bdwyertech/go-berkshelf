@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -18,7 +17,6 @@ type DefaultResolver struct {
 	sources       []source.CookbookSource
 	cache         *ResolutionCache
 	maxCandidates int
-	mu            sync.RWMutex
 }
 
 // ResolutionCache caches cookbook metadata and available versions
@@ -85,19 +83,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requireme
 		}
 
 		// Create source location from the actual source that provided the cookbook
-		var sourceLocation *berkshelf.SourceLocation
-		if req.Source != nil {
-			// Use the requirement's specific source if provided, but enhance it with actual source info
-			sourceLocation = req.Source
-			// Ensure the source location has all the necessary information from the actual source
-			if sourceLocation.Type == "git" {
-				// The original source location from Berksfile should already have all options preserved
-				log.Debugf("Using original source location with Git options: %+v", sourceLocation.Options)
-			}
-		} else {
-			// Create source location from the actual source that provided the cookbook
-			sourceLocation = source.GetSourceLocation()
-		}
+		sourceLocation := source.GetSourceLocation()
 
 		// Add to resolution
 		resolved := &ResolvedCookbook{
@@ -264,24 +250,6 @@ func (r *DefaultResolver) fetchCookbook(ctx context.Context, name string, versio
 	r.cache.SetMetadata(cacheKey, cookbook)
 
 	return cookbook, nil
-}
-
-// sourceMatches checks if a source matches the required source location
-func sourceMatches(src source.CookbookSource, loc *berkshelf.SourceLocation) bool {
-	if src == nil || loc == nil {
-		fmt.Printf("DEBUG: sourceMatches: src or loc is nil (src: %v, loc: %v)\n", src != nil, loc != nil)
-		return false
-	}
-
-	source := strings.Fields(src.Name())
-
-	if source[0] != loc.Type {
-		return false
-	}
-	if source[1][1:len(source[1])-1] != loc.URL {
-		return false
-	}
-	return true
 }
 
 // Cache methods

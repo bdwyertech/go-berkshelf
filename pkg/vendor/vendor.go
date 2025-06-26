@@ -200,6 +200,9 @@ func (v *Vendorer) createSourceFromLockFile(sourceInfo *lockfile.SourceInfo) (so
 	if sourceInfo.Tag != "" {
 		sourceLocation.Options["tag"] = sourceInfo.Tag
 	}
+	if sourceInfo.Ref != "" {
+		sourceLocation.Options["ref"] = sourceInfo.Ref
+	}
 
 	// Create source using factory
 	factory := source.NewFactory()

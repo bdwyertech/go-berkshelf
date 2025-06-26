@@ -25,13 +25,6 @@ type CookbookNode struct {
 	Resolved bool
 }
 
-// DependencyEdge represents a dependency relationship between cookbooks
-type DependencyEdge struct {
-	from       *CookbookNode
-	to         *CookbookNode
-	constraint *berkshelf.Constraint
-}
-
 // NewDependencyGraph creates a new dependency graph
 func NewDependencyGraph() *DependencyGraph {
 	return &DependencyGraph{

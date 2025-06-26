@@ -247,6 +247,7 @@ func (g *GitSource) checkout(repo *git.Repository) error {
 	if err != nil {
 		return fmt.Errorf("checking out %s: %w", checkoutRef, err)
 	}
+	g.revision = hash.String()
 
 	return nil
 }
@@ -293,12 +294,6 @@ func (g *GitSource) FetchMetadata(ctx context.Context, name string, version *ber
 	repo, err := g.clone(ctx, name)
 	if err != nil {
 		return nil, err
-	}
-
-	// Checkout the appropriate version
-	if version.String() != "0.0.0" {
-		// This is a real version tag
-		g.tag = version.String()
 	}
 
 	if err := g.checkout(repo); err != nil {
@@ -463,7 +458,7 @@ func (g *GitSource) GetSourceLocation() *berkshelf.SourceLocation {
 		URL:  g.uri,
 		Ref:  g.ref,
 	}
-	
+
 	// Add Git-specific options
 	if g.branch != "" || g.tag != "" || g.revision != "" {
 		location.Options = make(map[string]any)
