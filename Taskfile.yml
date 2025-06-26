@@ -1,0 +1,29 @@
+version: '3'
+
+tasks:
+  install-gocc:
+    desc: Install GoCC parser generator
+    cmds:
+      - go install github.com/goccmack/gocc@latest
+      - go install golang.org/x/tools/cmd/goyacc@latest
+
+  install-prereqs:
+    desc: Install all prerequisites for GoCC and BNF compilation
+    cmds:
+      - task: install-gocc
+      - 'echo "GoCC installed. To compile .bnf files, use: gocc <path-to-bnf-file>"'
+#   compile-bnf:
+#     desc: Compile a .bnf grammar file into Go code using GoCC
+#     vars:
+#       FILE:
+#         sh: echo ${FILE:-grammar.bnf}
+#     cmds:
+#       - gocc {{.FILE}}
+#     sources:
+#       - '{{.FILE}}'
+#     generates:
+#       - 'parser/*'
+
+# Usage:
+#   task install-prereqs      # Installs GoCC
+#   task compile-bnf --FILE=mygrammar.bnf   # Compiles mygrammar.bnf
