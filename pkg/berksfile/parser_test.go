@@ -30,7 +30,10 @@ func TestParser_BasicBerksfile(t *testing.T) {
 				if len(b.Sources) != 1 {
 					t.Fatalf("expected 1 source, got %d", len(b.Sources))
 				}
-				if b.Sources[0] != "https://supermarket.chef.io" {
+				if b.Sources[0].Type != "supermarket" {
+					t.Errorf("expected source type 'supermarket', got %q", b.Sources[0].Type)
+				}
+				if b.Sources[0].URL != "https://supermarket.chef.io" {
 					t.Errorf("expected source 'https://supermarket.chef.io', got %q", b.Sources[0])
 				}
 			},

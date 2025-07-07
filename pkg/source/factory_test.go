@@ -13,9 +13,9 @@ func TestFactory_CreateFromBerksfile(t *testing.T) {
 
 	// Test with default sources
 	bf := &berksfile.Berksfile{
-		Sources: []string{
-			"https://supermarket.chef.io",
-			"https://internal.example.com",
+		Sources: []*berkshelf.SourceLocation{
+			{Type: "supermarket", URL: "https://supermarket.chef.io"},
+			{Type: "supermarket", URL: "https://internal.example.com"},
 		},
 	}
 
@@ -39,7 +39,7 @@ func TestFactory_CreateFromBerksfile_NoSources(t *testing.T) {
 
 	// Test with no sources - should add default Supermarket
 	bf := &berksfile.Berksfile{
-		Sources: []string{},
+		Sources: []*berkshelf.SourceLocation{},
 	}
 
 	manager, err := factory.CreateFromBerksfile(bf)
@@ -169,7 +169,7 @@ func TestFactory_AddDefaultSource(t *testing.T) {
 
 	// Create manager with no sources
 	bf := &berksfile.Berksfile{
-		Sources: []string{},
+		Sources: []*berkshelf.SourceLocation{},
 	}
 
 	manager, err := factory.CreateFromBerksfile(bf)

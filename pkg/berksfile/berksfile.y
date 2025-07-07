@@ -20,10 +20,10 @@ type CookbookDef struct {
 
 // Berksfile represents a parsed Berksfile
 type Berksfile struct {
-	Sources     []string                  // List of default sources
-	Cookbooks   []*CookbookDef            // All cookbook definitions
-	Groups      map[string][]*CookbookDef // Grouped cookbooks
-	HasMetadata bool                      // Whether metadata directive is present
+	Sources     []*berkshelf.SourceLocation   // List of default sources with full configuration
+	Cookbooks   []*CookbookDef                // All cookbook definitions
+	Groups      map[string][]*CookbookDef     // Grouped cookbooks
+	HasMetadata bool                          // Whether metadata directive is present
 }
 
 var Result *Berksfile
@@ -175,10 +175,20 @@ type stmtResult struct {
 
 berksfile:
     statement_list {
-        // Convert sources from []*Source to []string
-        sources := make([]string, len($1.sources))
+        // Convert sources from []*Source to []*berkshelf.SourceLocation
+        sources := make([]*berkshelf.SourceLocation, len($1.sources))
         for i, src := range $1.sources {
-            sources[i] = src.URL
+            // Convert map[string]string to map[string]any
+            options := make(map[string]any)
+            for k, v := range src.Options {
+                options[k] = v
+            }
+            
+            sources[i] = &berkshelf.SourceLocation{
+                Type:    src.Type,
+                URL:     src.URL,
+                Options: options,
+            }
         }
         
         // Collect all cookbooks (both standalone and from groups)

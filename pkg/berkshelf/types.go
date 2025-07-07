@@ -8,3 +8,26 @@ type SourceLocation struct {
 	Path    string         `json:"path,omitempty"` // local path or subdir in git
 	Options map[string]any `json:"options,omitempty"`
 }
+
+// String returns a string representation of the source location
+func (s *SourceLocation) String() string {
+	if s == nil {
+		return ""
+	}
+	
+	// For simple cases, just return the URL
+	if s.Type == "supermarket" && s.URL != "" {
+		return s.URL
+	}
+	
+	// For other types, include more detail if needed
+	if s.URL != "" {
+		return s.URL
+	}
+	
+	if s.Path != "" {
+		return s.Path
+	}
+	
+	return s.Type
+}

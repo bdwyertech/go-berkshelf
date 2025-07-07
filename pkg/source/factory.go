@@ -31,10 +31,10 @@ func (f *Factory) CreateFromBerksfile(bf *berksfile.Berksfile) (*Manager, error)
 	manager := NewManager()
 
 	// Add sources from Berksfile
-	for _, sourceURL := range bf.Sources {
-		source, err := f.createFromURL(sourceURL)
+	for _, sourceLocation := range bf.Sources {
+		source, err := f.CreateFromLocation(sourceLocation)
 		if err != nil {
-			return nil, fmt.Errorf("creating source from %s: %w", sourceURL, err)
+			return nil, fmt.Errorf("creating source from %s: %w", sourceLocation.URL, err)
 		}
 		manager.AddSource(source)
 	}

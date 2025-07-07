@@ -3,6 +3,8 @@ package berksfile
 import (
 	"fmt"
 	"strings"
+	
+	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
 // ParseBerksfile parses the input Berksfile DSL and returns a Berksfile struct or error.
@@ -11,7 +13,7 @@ func ParseBerksfile(input string) (*Berksfile, error) {
 	if trimmed == "" {
 		// Return empty but valid Berksfile for empty input
 		return &Berksfile{
-			Sources:     []string{},
+			Sources:     []*berkshelf.SourceLocation{},
 			Cookbooks:   []*CookbookDef{},
 			Groups:      make(map[string][]*CookbookDef),
 			HasMetadata: false,

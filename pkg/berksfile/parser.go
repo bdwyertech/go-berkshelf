@@ -24,10 +24,10 @@ type CookbookDef struct {
 
 // Berksfile represents a parsed Berksfile
 type Berksfile struct {
-	Sources     []string                  // List of default sources
-	Cookbooks   []*CookbookDef            // All cookbook definitions
-	Groups      map[string][]*CookbookDef // Grouped cookbooks
-	HasMetadata bool                      // Whether metadata directive is present
+	Sources     []*berkshelf.SourceLocation // List of default sources with full configuration
+	Cookbooks   []*CookbookDef              // All cookbook definitions
+	Groups      map[string][]*CookbookDef   // Grouped cookbooks
+	HasMetadata bool                        // Whether metadata directive is present
 }
 
 var Result *Berksfile
@@ -198,7 +198,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line berksfile.y:544
+//line berksfile.y:554
 
 //line yacctab:1
 var yyExca = [...]int8{
@@ -631,10 +631,20 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line berksfile.y:177
 		{
-			// Convert sources from []*Source to []string
-			sources := make([]string, len(yyDollar[1].collections.sources))
+			// Convert sources from []*Source to []*berkshelf.SourceLocation
+			sources := make([]*berkshelf.SourceLocation, len(yyDollar[1].collections.sources))
 			for i, src := range yyDollar[1].collections.sources {
-				sources[i] = src.URL
+				// Convert map[string]string to map[string]any
+				options := make(map[string]any)
+				for k, v := range src.Options {
+					options[k] = v
+				}
+
+				sources[i] = &berkshelf.SourceLocation{
+					Type:    src.Type,
+					URL:     src.URL,
+					Options: options,
+				}
 			}
 
 			// Collect all cookbooks (both standalone and from groups)
@@ -683,13 +693,13 @@ yydefault:
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:231
+//line berksfile.y:241
 		{
 			yyVAL.collections = yyDollar[1].collections
 		}
 	case 3:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:234
+//line berksfile.y:244
 		{
 			yyVAL.collections.sources = []*Source{}
 			yyVAL.collections.cookbooks = []*CookbookDef{}
@@ -698,7 +708,7 @@ yydefault:
 		}
 	case 4:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:243
+//line berksfile.y:253
 		{
 			yyVAL.collections.sources = yyDollar[1].collections.sources
 			yyVAL.collections.cookbooks = yyDollar[1].collections.cookbooks
@@ -721,13 +731,13 @@ yydefault:
 		}
 	case 5:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:263
+//line berksfile.y:273
 		{
 			yyVAL.collections = yyDollar[1].collections
 		}
 	case 6:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:266
+//line berksfile.y:276
 		{
 			yyVAL.collections.sources = []*Source{}
 			yyVAL.collections.cookbooks = []*CookbookDef{}
@@ -750,7 +760,7 @@ yydefault:
 		}
 	case 7:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:286
+//line berksfile.y:296
 		{
 			yyVAL.collections.sources = []*Source{}
 			yyVAL.collections.cookbooks = []*CookbookDef{}
@@ -759,7 +769,7 @@ yydefault:
 		}
 	case 8:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:295
+//line berksfile.y:305
 		{
 			yyVAL.stmt.source = yyDollar[1].source
 			yyVAL.stmt.cookbook = nil
@@ -768,7 +778,7 @@ yydefault:
 		}
 	case 9:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:301
+//line berksfile.y:311
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = nil
@@ -777,7 +787,7 @@ yydefault:
 		}
 	case 10:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:307
+//line berksfile.y:317
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = yyDollar[1].cookbook
@@ -786,7 +796,7 @@ yydefault:
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:313
+//line berksfile.y:323
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = nil
@@ -795,7 +805,7 @@ yydefault:
 		}
 	case 12:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:322
+//line berksfile.y:332
 		{
 			yyVAL.source = &Source{
 				Type:    yyDollar[2].sa.typ,
@@ -805,7 +815,7 @@ yydefault:
 		}
 	case 13:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:332
+//line berksfile.y:342
 		{
 			yyVAL.sa.typ = "supermarket"
 			yyVAL.sa.url = trimQuotes(yyDollar[1].str)
@@ -813,7 +823,7 @@ yydefault:
 		}
 	case 14:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:337
+//line berksfile.y:347
 		{
 			yyVAL.sa.typ = yyDollar[1].str
 			yyVAL.sa.url = trimQuotes(yyDollar[3].str)
@@ -821,7 +831,7 @@ yydefault:
 		}
 	case 15:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line berksfile.y:342
+//line berksfile.y:352
 		{
 			yyVAL.sa.typ = yyDollar[1].str
 			yyVAL.sa.url = trimQuotes(yyDollar[3].str)
@@ -829,13 +839,13 @@ yydefault:
 		}
 	case 16:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:350
+//line berksfile.y:360
 		{
 			yyVAL.boolVal = true
 		}
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:356
+//line berksfile.y:366
 		{
 			constraint, _ := ParseConstraint(">= 0.0.0")
 			if yyDollar[3].cbTail.version != "" {
@@ -879,61 +889,61 @@ yydefault:
 		}
 	case 18:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:400
+//line berksfile.y:410
 		{
 			yyVAL.str = trimQuotes(yyDollar[1].str)
 		}
 	case 19:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:401
+//line berksfile.y:411
 		{
 			yyVAL.str = yyDollar[1].str
 		}
 	case 20:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:405
+//line berksfile.y:415
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = nil
 		}
 	case 21:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:409
+//line berksfile.y:419
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = yyDollar[3].opts
 		}
 	case 22:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line berksfile.y:413
+//line berksfile.y:423
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = yyDollar[5].opts
 		}
 	case 23:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:417
+//line berksfile.y:427
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = yyDollar[2].opts
 		}
 	case 24:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:421
+//line berksfile.y:431
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = yyDollar[4].opts
 		}
 	case 25:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:425
+//line berksfile.y:435
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = nil
 		}
 	case 26:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line berksfile.y:432
+//line berksfile.y:442
 		{
 			// For multiple groups, we need to create separate Group entries
 			// but the cookbooks will be shared across groups
@@ -963,79 +973,79 @@ yydefault:
 		}
 	case 27:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:462
+//line berksfile.y:472
 		{
 			yyVAL.sources = append(yyDollar[1].sources, &Source{URL: yyDollar[4].str})
 		}
 	case 28:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:465
+//line berksfile.y:475
 		{
 			yyVAL.sources = append(yyDollar[1].sources, &Source{URL: trimQuotes(yyDollar[4].str)})
 		}
 	case 29:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:468
+//line berksfile.y:478
 		{
 			yyVAL.sources = []*Source{{URL: yyDollar[1].str}}
 		}
 	case 30:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:471
+//line berksfile.y:481
 		{
 			yyVAL.sources = []*Source{{URL: trimQuotes(yyDollar[1].str)}}
 		}
 	case 31:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:474
+//line berksfile.y:484
 		{
 			yyVAL.sources = []*Source{{URL: yyDollar[2].str}}
 		}
 	case 32:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:477
+//line berksfile.y:487
 		{
 			yyVAL.sources = []*Source{{URL: trimQuotes(yyDollar[2].str)}}
 		}
 	case 33:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:483
+//line berksfile.y:493
 		{
 			yyVAL.cookbooks = yyDollar[1].cookbooks
 		}
 	case 34:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:486
+//line berksfile.y:496
 		{
 			yyVAL.cookbooks = []*CookbookDef{}
 		}
 	case 35:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:492
+//line berksfile.y:502
 		{
 			yyVAL.cookbooks = append(yyDollar[1].cookbooks, yyDollar[2].cookbook)
 		}
 	case 36:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:495
+//line berksfile.y:505
 		{
 			yyVAL.cookbooks = yyDollar[1].cookbooks
 		}
 	case 37:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:498
+//line berksfile.y:508
 		{
 			yyVAL.cookbooks = []*CookbookDef{yyDollar[1].cookbook}
 		}
 	case 38:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:501
+//line berksfile.y:511
 		{
 			yyVAL.cookbooks = []*CookbookDef{}
 		}
 	case 39:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:507
+//line berksfile.y:517
 		{
 			m := map[string]string{yyDollar[1].kv.key: yyDollar[1].kv.value}
 			for k, v := range yyDollar[2].opts {
@@ -1045,7 +1055,7 @@ yydefault:
 		}
 	case 40:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:517
+//line berksfile.y:527
 		{
 			m := map[string]string{yyDollar[2].kv.key: yyDollar[2].kv.value}
 			for k, v := range yyDollar[3].opts {
@@ -1055,27 +1065,27 @@ yydefault:
 		}
 	case 41:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:524
+//line berksfile.y:534
 		{
 			yyVAL.opts = map[string]string{}
 		}
 	case 42:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:530
+//line berksfile.y:540
 		{
 			yyVAL.kv.key = yyDollar[1].str
 			yyVAL.kv.value = trimQuotes(yyDollar[3].str)
 		}
 	case 43:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:534
+//line berksfile.y:544
 		{
 			yyVAL.kv.key = yyDollar[2].str
 			yyVAL.kv.value = trimQuotes(yyDollar[4].str)
 		}
 	case 44:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:538
+//line berksfile.y:548
 		{
 			yyVAL.kv.key = trimQuotes(yyDollar[1].str)
 			yyVAL.kv.value = trimQuotes(yyDollar[3].str)

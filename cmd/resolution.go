@@ -17,10 +17,10 @@ func SetupSourcesFromBerksfile(berks *berksfile.Berksfile) (*source.Manager, err
 	factory := source.NewFactory()
 
 	// Add sources from Berksfile
-	for _, sourceURL := range berks.Sources {
-		src, err := factory.CreateFromURL(sourceURL)
+	for _, sourceLocation := range berks.Sources {
+		src, err := factory.CreateFromLocation(sourceLocation)
 		if err != nil {
-			log.Warnf("failed to create source from %s: %v", sourceURL, err)
+			log.Warnf("failed to create source from %s: %v", sourceLocation.URL, err)
 			continue
 		}
 		sourceManager.AddSource(src)
@@ -59,7 +59,16 @@ func ResolveDependencies(ctx context.Context, requirements []*resolver.Requireme
 func CreateRequirementsFromCookbooks(cookbooks []*berksfile.CookbookDef) []*resolver.Requirement {
 	requirements := make([]*resolver.Requirement, 0, len(cookbooks))
 	for _, cookbook := range cookbooks {
-		req := resolver.NewRequirementWithSource(cookbook.Name, cookbook.Constraint, cookbook.Source)
+		var req *resolver.Requirement
+		
+		// Only pass source if it's not empty (has type and URL)
+		if cookbook.Source != nil && cookbook.Source.Type != "" && cookbook.Source.URL != "" {
+			req = resolver.NewRequirementWithSource(cookbook.Name, cookbook.Constraint, cookbook.Source)
+		} else {
+			// Use global sources for cookbooks without specific sources
+			req = resolver.NewRequirement(cookbook.Name, cookbook.Constraint)
+		}
+		
 		requirements = append(requirements, req)
 	}
 	return requirements
