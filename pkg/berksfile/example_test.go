@@ -33,7 +33,7 @@ end
 `
 
 	// Parse the Berksfile
-	berks, err := berksfile.ParseString(content)
+	berks, err := berksfile.ParseBerksfile(content)
 	if err != nil {
 		log.Fatal(err)
 	}

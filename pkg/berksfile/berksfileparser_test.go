@@ -1,14 +1,14 @@
-package berksfileparser_test
+package berksfile_test
 
 import (
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfileparser"
+	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
 )
 
 // func TestTokens(t *testing.T) {
 // 	src := `source chef_server: "https://chef.myorg.net/", client_name: "bd"`
-// 	berksfile, err := berksfileparser.ParseBerksfile(src)
+// 	berksfile, err := berksfile.ParseBerksfile(src)
 // 	if err != nil {
 // 		t.Fatalf("ParseBerksfile failed: %v", err)
 // 	}
@@ -42,7 +42,7 @@ import (
 // cookbook 'nginx', "~> 1.2"
 // cookbook 'windows-security-policy', git: 'https://github.com/bdwyertech/windows-security-policy.git', branch: 'chef-16'
 // `
-// 	berksfile, err := berksfileparser.ParseBerksfile(input)
+// 	berksfile, err := berksfile.ParseBerksfile(input)
 // 	if err != nil {
 // 		t.Fatalf("ParseBerksfile failed: %v", err)
 // 	}
@@ -61,7 +61,7 @@ import (
 
 func TestParseBerksfile_Empty(t *testing.T) {
 	input := ``
-	berksfile, err := berksfileparser.ParseBerksfile(input)
+	berksfile, err := berksfile.ParseBerksfile(input)
 	if err != nil {
 		t.Fatalf("Expected success for empty input, got error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestParseBerksfile_Empty(t *testing.T) {
 
 func TestParseBerksfile_InvalidSyntax(t *testing.T) {
 	input := `cookbook "nginx" "1.2" { invalid_syntax }`
-	_, err := berksfileparser.ParseBerksfile(input)
+	_, err := berksfile.ParseBerksfile(input)
 	if err == nil {
 		t.Fatalf("Expected error for invalid syntax, got nil")
 	}
@@ -87,7 +87,7 @@ func TestParseBerksfile_GroupEdgeCases(t *testing.T) {
 group :web do
 end
 `
-	berksfile, err := berksfileparser.ParseBerksfile(input)
+	berksfile, err := berksfile.ParseBerksfile(input)
 	if err != nil {
 		t.Fatalf("ParseBerksfile failed: %v", err)
 	}
@@ -111,7 +111,7 @@ cookbook "nginx"
 # Another comment
 cookbook "redis"
 `
-	berksfile, err := berksfileparser.ParseBerksfile(input)
+	berksfile, err := berksfile.ParseBerksfile(input)
 	if err != nil {
 		t.Fatalf("ParseBerksfile failed: %v", err)
 	}

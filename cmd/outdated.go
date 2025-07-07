@@ -47,12 +47,7 @@ Examples:
 		}
 
 		// Parse Berksfile
-		berksfileContent, err := os.ReadFile("Berksfile")
-		if err != nil {
-			return fmt.Errorf("failed to read Berksfile: %w", err)
-		}
-
-		bf, err := berksfile.ParseString(string(berksfileContent))
+		bf, err := berksfile.ParseFile("Berksfile")
 		if err != nil {
 			return fmt.Errorf("failed to parse Berksfile: %w", err)
 		}

@@ -1,384 +1,214 @@
+//go:generate goyacc -o parser.go berksfile.y
+
 package berksfile
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"strings"
+	"text/scanner"
 	"unicode"
 )
 
-// TokenType represents the type of a lexical token
-type TokenType int
-
-const (
-	// Special tokens
-	TokenEOF TokenType = iota
-	TokenError
-	TokenNewline
-
-	// Literals
-	TokenString
-	TokenSymbol
-	TokenNumber
-	TokenComment
-
-	// Keywords
-	TokenSource
-	TokenCookbook
-	TokenMetadata
-	TokenGroup
-	TokenEnd
-
-	// Operators
-	TokenComma
-	TokenColon
-	TokenArrow // =>
-	TokenOpenParen
-	TokenCloseParen
-	TokenOpenBrace
-	TokenCloseBrace
-)
-
-var tokenTypeNames = map[TokenType]string{
-	TokenEOF:        "EOF",
-	TokenError:      "ERROR",
-	TokenNewline:    "NEWLINE",
-	TokenString:     "STRING",
-	TokenSymbol:     "SYMBOL",
-	TokenNumber:     "NUMBER",
-	TokenComment:    "COMMENT",
-	TokenSource:     "SOURCE",
-	TokenCookbook:   "COOKBOOK",
-	TokenMetadata:   "METADATA",
-	TokenGroup:      "GROUP",
-	TokenEnd:        "END",
-	TokenComma:      "COMMA",
-	TokenColon:      "COLON",
-	TokenArrow:      "ARROW",
-	TokenOpenParen:  "OPEN_PAREN",
-	TokenCloseParen: "CLOSE_PAREN",
-	TokenOpenBrace:  "OPEN_BRACE",
-	TokenCloseBrace: "CLOSE_BRACE",
+var keywords = map[string]int{
+	"source":   SOURCE,
+	"metadata": METADATA,
+	"cookbook": COOKBOOK,
+	"group":    GROUP,
+	"do":       DO,
+	"end":      END,
 }
 
-func (t TokenType) String() string {
-	if name, ok := tokenTypeNames[t]; ok {
-		return name
-	}
-	return fmt.Sprintf("UNKNOWN(%d)", t)
-}
+// Global variable to store parse errors
+var lastParseError error
 
-// Token represents a lexical token
-type Token struct {
-	Type   TokenType
-	Value  string
-	Line   int
-	Column int
-}
-
-func (t Token) String() string {
-	return fmt.Sprintf("%s(%q) at %d:%d", t.Type, t.Value, t.Line, t.Column)
-}
-
-// Lexer tokenizes Berksfile content
 type Lexer struct {
-	reader *bufio.Reader
-	line   int
-	column int
-	tokens []Token
-	errors []error
+	s   scanner.Scanner
+	buf struct {
+		tok int
+		lit string
+		n   int
+	}
+	sourceText string
+	tokenLog   []string
 }
 
-// NewLexer creates a new lexer for the given input
-func NewLexer(input io.Reader) *Lexer {
-	return &Lexer{
-		reader: bufio.NewReader(input),
-		line:   1,
-		column: 1,
-		tokens: make([]Token, 0),
-		errors: make([]error, 0),
-	}
+func NewLexer(src string) *Lexer {
+	var l Lexer
+	l.s.Init(strings.NewReader(src))
+	l.s.Whitespace ^= 1 << '\n' // Don't skip newlines
+	l.s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanComments
+	l.sourceText = src
+	return &l
 }
 
-// Tokenize processes the entire input and returns all tokens
-func (l *Lexer) Tokenize() ([]Token, error) {
-	for {
-		token := l.nextToken()
-		l.tokens = append(l.tokens, token)
-		if token.Type == TokenEOF || token.Type == TokenError {
-			break
-		}
+func (l *Lexer) Lex(lval *yySymType) int {
+	// Use buffered token if any
+	if l.buf.n != 0 {
+		l.buf.n = 0
+		lval.str = l.buf.lit
+		return l.buf.tok
 	}
 
-	if len(l.errors) > 0 {
-		return l.tokens, fmt.Errorf("lexer errors: %v", l.errors)
+	l.tokenLog = append(l.tokenLog, l.s.TokenText())
+	if len(l.tokenLog) > 5 {
+		l.tokenLog = l.tokenLog[1:]
 	}
-
-	return l.tokens, nil
-}
-
-func (l *Lexer) nextToken() Token {
-	l.skipWhitespace()
-
-	ch := l.peek()
-	if ch == 0 {
-		return Token{Type: TokenEOF, Value: "", Line: l.line, Column: l.column}
-	}
-
-	startLine := l.line
-	startColumn := l.column
-
-	switch ch {
-	case '\n':
-		l.read()
-		return Token{Type: TokenNewline, Value: "\n", Line: startLine, Column: startColumn}
-	case '#':
-		return l.readComment()
-	case '"', '\'':
-		return l.readString()
-	case ':':
-		l.read()
-		if l.peek() == ':' {
-			// Handle :: scope operator if needed
-			l.read()
-			return Token{Type: TokenSymbol, Value: "::", Line: startLine, Column: startColumn}
-		}
-		// Check if this is a symbol
-		if unicode.IsLetter(rune(l.peek())) || l.peek() == '_' {
-			return l.readSymbol()
-		}
-		return Token{Type: TokenColon, Value: ":", Line: startLine, Column: startColumn}
-	case ',':
-		l.read()
-		return Token{Type: TokenComma, Value: ",", Line: startLine, Column: startColumn}
-	case '(':
-		l.read()
-		return Token{Type: TokenOpenParen, Value: "(", Line: startLine, Column: startColumn}
-	case ')':
-		l.read()
-		return Token{Type: TokenCloseParen, Value: ")", Line: startLine, Column: startColumn}
-	case '{':
-		l.read()
-		return Token{Type: TokenOpenBrace, Value: "{", Line: startLine, Column: startColumn}
-	case '}':
-		l.read()
-		return Token{Type: TokenCloseBrace, Value: "}", Line: startLine, Column: startColumn}
-	case '=':
-		l.read()
-		if l.peek() == '>' {
-			l.read()
-			return Token{Type: TokenArrow, Value: "=>", Line: startLine, Column: startColumn}
-		}
-		return Token{Type: TokenError, Value: "=", Line: startLine, Column: startColumn}
-	default:
-		if unicode.IsLetter(rune(ch)) || ch == '_' {
-			return l.readIdentifier()
-		}
-		if unicode.IsDigit(rune(ch)) {
-			return l.readNumber()
-		}
-		l.read()
-		return Token{Type: TokenError, Value: string(ch), Line: startLine, Column: startColumn}
-	}
-}
-
-func (l *Lexer) readComment() Token {
-	startLine := l.line
-	startColumn := l.column
-
-	var buf bytes.Buffer
-	l.read() // consume #
 
 	for {
-		ch := l.peek()
-		if ch == 0 || ch == '\n' {
-			break
-		}
-		buf.WriteByte(l.read())
-	}
-
-	return Token{Type: TokenComment, Value: buf.String(), Line: startLine, Column: startColumn}
-}
-
-func (l *Lexer) readString() Token {
-	startLine := l.line
-	startColumn := l.column
-
-	quote := l.read() // consume opening quote
-	var buf bytes.Buffer
-
-	for {
-		ch := l.peek()
-		if ch == 0 {
-			l.errors = append(l.errors, fmt.Errorf("unterminated string at line %d", startLine))
-			return Token{Type: TokenError, Value: buf.String(), Line: startLine, Column: startColumn}
-		}
-		if ch == quote {
-			l.read() // consume closing quote
-			break
-		}
-		if ch == '\\' {
-			l.read()
-			escaped := l.read()
-			switch escaped {
-			case 'n':
-				buf.WriteByte('\n')
-			case 't':
-				buf.WriteByte('\t')
-			case 'r':
-				buf.WriteByte('\r')
-			case '\\':
-				buf.WriteByte('\\')
-			case '"', '\'':
-				buf.WriteByte(escaped)
-			default:
-				buf.WriteByte(escaped)
+		r := l.s.Scan()
+		switch r {
+		case scanner.EOF:
+			return 0
+		case scanner.String, scanner.RawString:
+			lval.str = l.s.TokenText()
+			return STRING
+		case scanner.Ident:
+			ident := l.s.TokenText()
+			lower := strings.ToLower(ident)
+			if tok, isKeyword := keywords[lower]; isKeyword {
+				return tok
 			}
-		} else {
-			buf.WriteByte(l.read())
-		}
-	}
-
-	return Token{Type: TokenString, Value: buf.String(), Line: startLine, Column: startColumn}
-}
-
-func (l *Lexer) readSymbol() Token {
-	startLine := l.line
-	startColumn := l.column - 1 // account for already consumed ':'
-
-	var buf bytes.Buffer
-	buf.WriteByte(':')
-
-	for {
-		ch := l.peek()
-		if unicode.IsLetter(rune(ch)) || unicode.IsDigit(rune(ch)) || ch == '_' {
-			buf.WriteByte(l.read())
-		} else {
-			break
-		}
-	}
-
-	return Token{Type: TokenSymbol, Value: buf.String(), Line: startLine, Column: startColumn}
-}
-
-func (l *Lexer) readIdentifier() Token {
-	startLine := l.line
-	startColumn := l.column
-
-	var buf bytes.Buffer
-
-	for {
-		ch := l.peek()
-		if unicode.IsLetter(rune(ch)) || unicode.IsDigit(rune(ch)) || ch == '_' {
-			buf.WriteByte(l.read())
-		} else {
-			break
-		}
-	}
-
-	value := buf.String()
-	tokenType := TokenString
-
-	// Check for keywords
-	switch value {
-	case "source":
-		tokenType = TokenSource
-	case "cookbook":
-		tokenType = TokenCookbook
-	case "metadata":
-		tokenType = TokenMetadata
-	case "group":
-		tokenType = TokenGroup
-	case "end":
-		tokenType = TokenEnd
-	}
-
-	return Token{Type: tokenType, Value: value, Line: startLine, Column: startColumn}
-}
-
-func (l *Lexer) readNumber() Token {
-	startLine := l.line
-	startColumn := l.column
-
-	var buf bytes.Buffer
-
-	// Read integer part
-	for {
-		ch := l.peek()
-		if unicode.IsDigit(rune(ch)) {
-			buf.WriteByte(l.read())
-		} else {
-			break
-		}
-	}
-
-	// Check for decimal
-	if l.peek() == '.' {
-		nextCh := l.peekAhead(1)
-		if unicode.IsDigit(rune(nextCh)) {
-			buf.WriteByte(l.read()) // consume '.'
-			// Read decimal part
+			lval.str = ident
+			return IDENT
+		case scanner.Comment:
+			// Skip comments and continue lexing
+			continue
+		case ':':
+			// Always return COLON token - let the parser handle symbol syntax
+			lval.str = ":"
+			return COLON
+		case ',':
+			lval.str = ","
+			return COMMA
+		case '{':
+			lval.str = "{"
+			return LBRACE
+		case '}':
+			lval.str = "}"
+			return RBRACE
+		case '=':
+			next := l.s.Peek()
+			if next == '>' {
+				_ = l.s.Next() // consume '>'
+				lval.str = "=>"
+				return HASHROCKET
+			}
+			// If just '=', ignore it or handle as needed
+			continue
+		case '\n':
+			lval.str = "\n"
+			return NEWLINE
+		case ';':
+			// ignore semicolons
+			continue
+		case '#':
+			// Handle comments manually - scan until end of line
 			for {
-				ch := l.peek()
-				if unicode.IsDigit(rune(ch)) {
-					buf.WriteByte(l.read())
-				} else {
+				peek := l.s.Peek()
+				if peek == '\n' || peek == scanner.EOF {
 					break
+				}
+				_ = l.s.Next()
+			}
+			continue
+		case '\'':
+			// Handle single-quoted strings manually
+			var str strings.Builder
+			str.WriteRune('\'') // Include the opening quote
+
+			for {
+				next := l.s.Next()
+				if next == scanner.EOF {
+					// Unterminated string
+					break
+				}
+				str.WriteRune(next)
+				if next == '\'' {
+					// Found closing quote
+					break
+				}
+				if next == '\\' {
+					// Handle escape sequences
+					escaped := l.s.Next()
+					if escaped != scanner.EOF {
+						str.WriteRune(escaped)
+					}
+				}
+			}
+			lval.str = str.String()
+			return STRING
+		default:
+			if unicode.IsSpace(r) {
+				// ignore other spaces
+				continue
+			} else {
+				// Unexpected char - for debugging, you might want to continue instead of panic
+				fmt.Printf("Warning: unexpected char: %q at %s\n", r, l.s.Pos())
+				continue
+			}
+		}
+	}
+}
+
+func (l *Lexer) Error(msg string) {
+	pos := l.s.Pos()
+
+	// Find the line containing the error
+	lines := strings.Split(l.sourceText, "\n")
+	lineIndex := pos.Line - 1
+	line := ""
+	if lineIndex >= 0 && lineIndex < len(lines) {
+		line = lines[lineIndex]
+	}
+
+	// Provide more specific error messages based on context
+	customMsg := msg
+	if strings.Contains(msg, "syntax error") {
+		// Look at recent tokens to provide better context
+		if len(l.tokenLog) > 0 {
+			lastToken := l.tokenLog[len(l.tokenLog)-1]
+			switch lastToken {
+			case "cookbook":
+				if pos.Column >= len(line) {
+					customMsg = "expected cookbook name"
+				}
+			case "source":
+				if pos.Column >= len(line) {
+					customMsg = "expected string after 'source'"
 				}
 			}
 		}
-	}
 
-	return Token{Type: TokenNumber, Value: buf.String(), Line: startLine, Column: startColumn}
-}
-
-func (l *Lexer) skipWhitespace() {
-	for {
-		ch := l.peek()
-		if ch == ' ' || ch == '\t' || ch == '\r' {
-			l.read()
-		} else {
-			break
+		// Check for group-related errors
+		sourceText := strings.TrimSpace(l.sourceText)
+		if strings.Contains(sourceText, "group") {
+			// Check for incomplete group (group :name without do/end)
+			if strings.HasPrefix(sourceText, "group ") && !strings.Contains(sourceText, " do") {
+				customMsg = "unexpected token EOF in group"
+			}
+			// Check for unterminated groups (has 'do' but no 'end')
+			if strings.Contains(sourceText, "group") && strings.Contains(sourceText, " do") && !strings.Contains(sourceText, "end") {
+				customMsg = "unexpected token EOF in group"
+			}
 		}
 	}
+
+	lastParseError = fmt.Errorf(
+		"parse error at line %d, column %d: %s\n%s\n%s^",
+		pos.Line,
+		pos.Column,
+		customMsg,
+		line,
+		strings.Repeat(" ", pos.Column-1),
+	)
 }
 
-func (l *Lexer) peek() byte {
-	b, err := l.reader.Peek(1)
-	if err != nil {
-		return 0
-	}
-	return b[0]
+// GetLastError returns the last parse error
+func GetLastError() error {
+	return lastParseError
 }
 
-func (l *Lexer) peekAhead(n int) byte {
-	b, err := l.reader.Peek(n + 1)
-	if err != nil || len(b) <= n {
-		return 0
-	}
-	return b[n]
-}
-
-func (l *Lexer) read() byte {
-	b, err := l.reader.ReadByte()
-	if err != nil {
-		return 0
-	}
-
-	if b == '\n' {
-		l.line++
-		l.column = 1
-	} else {
-		l.column++
-	}
-
-	return b
-}
-
-// TokenizeString is a convenience function to tokenize a string
-func TokenizeString(input string) ([]Token, error) {
-	lexer := NewLexer(strings.NewReader(input))
-	return lexer.Tokenize()
+// ClearLastError clears the last parse error
+func ClearLastError() {
+	lastParseError = nil
 }

@@ -1,132 +1,143 @@
 package berksfile
 
 import (
-	"strings"
 	"testing"
 )
+
+// TokenInfo represents a token with its type and value for testing
+type TokenInfo struct {
+	Type  int
+	Value string
+}
+
+// Helper function to collect all tokens from a lexer
+func collectTokens(lexer *Lexer) []TokenInfo {
+	var tokens []TokenInfo
+	var lval yySymType
+
+	for {
+		tok := lexer.Lex(&lval)
+		if tok == 0 { // EOF
+			break
+		}
+		tokens = append(tokens, TokenInfo{
+			Type:  tok,
+			Value: lval.str,
+		})
+	}
+
+	return tokens
+}
 
 func TestLexer_BasicTokens(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected []TokenType
+		expected []TokenInfo
 	}{
 		{
 			name:     "empty file",
 			input:    "",
-			expected: []TokenType{TokenEOF},
+			expected: []TokenInfo{},
 		},
 		{
-			name:     "comment",
-			input:    "# This is a comment",
-			expected: []TokenType{TokenComment, TokenEOF},
-		},
-		{
-			name:     "source declaration",
-			input:    "source 'https://supermarket.chef.io'",
-			expected: []TokenType{TokenSource, TokenString, TokenEOF},
-		},
-		{
-			name:     "cookbook with version",
-			input:    "cookbook 'nginx', '~> 2.7.6'",
-			expected: []TokenType{TokenCookbook, TokenString, TokenComma, TokenString, TokenEOF},
-		},
-		{
-			name:     "metadata directive",
-			input:    "metadata",
-			expected: []TokenType{TokenMetadata, TokenEOF},
-		},
-		{
-			name:     "group block",
-			input:    "group :test do\nend",
-			expected: []TokenType{TokenGroup, TokenSymbol, TokenString, TokenNewline, TokenEnd, TokenEOF},
-		},
-		{
-			name:     "cookbook with hash options",
-			input:    "cookbook 'private', git: 'git@github.com:user/repo.git'",
-			expected: []TokenType{TokenCookbook, TokenString, TokenComma, TokenString, TokenColon, TokenString, TokenEOF},
-		},
-		{
-			name:     "multiple lines",
-			input:    "source 'https://supermarket.chef.io'\n\ncookbook 'nginx'",
-			expected: []TokenType{TokenSource, TokenString, TokenNewline, TokenNewline, TokenCookbook, TokenString, TokenEOF},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lexer := NewLexer(strings.NewReader(tt.input))
-			tokens, err := lexer.Tokenize()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(tokens) != len(tt.expected) {
-				t.Fatalf("expected %d tokens, got %d", len(tt.expected), len(tokens))
-			}
-
-			for i, expectedType := range tt.expected {
-				if tokens[i].Type != expectedType {
-					t.Errorf("token %d: expected type %v, got %v", i, expectedType, tokens[i].Type)
-				}
-			}
-		})
-	}
-}
-
-func TestLexer_TokenValues(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected []Token
-	}{
-		{
-			name:  "string values",
-			input: `"double quoted" 'single quoted'`,
-			expected: []Token{
-				{Type: TokenString, Value: "double quoted", Line: 1, Column: 1},
-				{Type: TokenString, Value: "single quoted", Line: 1, Column: 17},
-				{Type: TokenEOF, Value: "", Line: 1, Column: 32},
+			name:  "source declaration",
+			input: "source 'https://supermarket.chef.io'",
+			expected: []TokenInfo{
+				{Type: SOURCE, Value: ""},
+				{Type: STRING, Value: "'https://supermarket.chef.io'"},
 			},
 		},
 		{
-			name:  "symbol values",
-			input: `:test :production`,
-			expected: []Token{
-				{Type: TokenSymbol, Value: ":test", Line: 1, Column: 1},
-				{Type: TokenSymbol, Value: ":production", Line: 1, Column: 7},
-				{Type: TokenEOF, Value: "", Line: 1, Column: 18},
+			name:  "cookbook with version",
+			input: "cookbook 'nginx', '~> 2.7.6'",
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'nginx'"},
+				{Type: COMMA, Value: ","},
+				{Type: STRING, Value: "'~> 2.7.6'"},
 			},
 		},
 		{
-			name:  "comment value",
-			input: "# This is a comment\ncookbook 'test'",
-			expected: []Token{
-				{Type: TokenComment, Value: " This is a comment", Line: 1, Column: 1},
-				{Type: TokenNewline, Value: "\n", Line: 1, Column: 20},
-				{Type: TokenCookbook, Value: "cookbook", Line: 2, Column: 1},
-				{Type: TokenString, Value: "test", Line: 2, Column: 10},
-				{Type: TokenEOF, Value: "", Line: 2, Column: 16},
+			name:  "metadata directive",
+			input: "metadata",
+			expected: []TokenInfo{
+				{Type: METADATA, Value: ""},
 			},
 		},
 		{
-			name:  "escaped strings",
-			input: `"line1\nline2" 'tab\there'`,
-			expected: []Token{
-				{Type: TokenString, Value: "line1\nline2", Line: 1, Column: 1},
-				{Type: TokenString, Value: "tab\there", Line: 1, Column: 16},
-				{Type: TokenEOF, Value: "", Line: 1, Column: 27},
+			name:  "group block",
+			input: "group :test do\nend",
+			expected: []TokenInfo{
+				{Type: GROUP, Value: ""},
+				{Type: COLON, Value: ":"},
+				{Type: IDENT, Value: "test"},
+				{Type: DO, Value: ""},
+				{Type: NEWLINE, Value: "\n"},
+				{Type: END, Value: ""},
+			},
+		},
+		{
+			name:  "cookbook with git source",
+			input: "cookbook 'private', git: 'git@github.com:user/repo.git'",
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'private'"},
+				{Type: COMMA, Value: ","},
+				{Type: IDENT, Value: "git"},
+				{Type: COLON, Value: ":"},
+				{Type: STRING, Value: "'git@github.com:user/repo.git'"},
+			},
+		},
+		{
+			name:  "cookbook with hash options",
+			input: "cookbook 'test', { git: 'repo.git', branch: 'master' }",
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'test'"},
+				{Type: COMMA, Value: ","},
+				{Type: LBRACE, Value: "{"},
+				{Type: IDENT, Value: "git"},
+				{Type: COLON, Value: ":"},
+				{Type: STRING, Value: "'repo.git'"},
+				{Type: COMMA, Value: ","},
+				{Type: IDENT, Value: "branch"},
+				{Type: COLON, Value: ":"},
+				{Type: STRING, Value: "'master'"},
+				{Type: RBRACE, Value: "}"},
+			},
+		},
+		{
+			name:  "hashrocket syntax",
+			input: "cookbook 'test', :git => 'repo.git'",
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'test'"},
+				{Type: COMMA, Value: ","},
+				{Type: COLON, Value: ":"},
+				{Type: IDENT, Value: "git"},
+				{Type: HASHROCKET, Value: "=>"},
+				{Type: STRING, Value: "'repo.git'"},
+			},
+		},
+		{
+			name:  "multiple lines with newlines",
+			input: "source 'https://supermarket.chef.io'\n\ncookbook 'nginx'",
+			expected: []TokenInfo{
+				{Type: SOURCE, Value: ""},
+				{Type: STRING, Value: "'https://supermarket.chef.io'"},
+				{Type: NEWLINE, Value: "\n"},
+				{Type: NEWLINE, Value: "\n"},
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'nginx'"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lexer := NewLexer(strings.NewReader(tt.input))
-			tokens, err := lexer.Tokenize()
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			lexer := NewLexer(tt.input)
+			tokens := collectTokens(lexer)
 
 			if len(tokens) != len(tt.expected) {
 				t.Fatalf("expected %d tokens, got %d", len(tt.expected), len(tokens))
@@ -135,16 +146,197 @@ func TestLexer_TokenValues(t *testing.T) {
 			for i, expected := range tt.expected {
 				actual := tokens[i]
 				if actual.Type != expected.Type {
-					t.Errorf("token %d: expected type %v, got %v", i, expected.Type, actual.Type)
+					t.Errorf("token %d: expected type %d, got %d", i, expected.Type, actual.Type)
+				}
+				if expected.Value != "" && actual.Value != expected.Value {
+					t.Errorf("token %d: expected value %q, got %q", i, expected.Value, actual.Value)
+				}
+			}
+		})
+	}
+}
+
+func TestLexer_StringHandling(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []TokenInfo
+	}{
+		{
+			name:  "double quoted strings",
+			input: `cookbook "nginx"`,
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: `"nginx"`},
+			},
+		},
+		{
+			name:  "single quoted strings",
+			input: `cookbook 'nginx'`,
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: `'nginx'`},
+			},
+		},
+		{
+			name:  "mixed quotes",
+			input: `cookbook "nginx", '~> 2.7'`,
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: `"nginx"`},
+				{Type: COMMA, Value: ","},
+				{Type: STRING, Value: `'~> 2.7'`},
+			},
+		},
+		{
+			name:  "strings with spaces",
+			input: `cookbook 'my cookbook name'`,
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: `'my cookbook name'`},
+			},
+		},
+		{
+			name:  "escaped strings",
+			input: `cookbook 'test\'s cookbook'`,
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: `'test\'s cookbook'`},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			tokens := collectTokens(lexer)
+
+			if len(tokens) != len(tt.expected) {
+				t.Fatalf("expected %d tokens, got %d", len(tt.expected), len(tokens))
+			}
+
+			for i, expected := range tt.expected {
+				actual := tokens[i]
+				if actual.Type != expected.Type {
+					t.Errorf("token %d: expected type %d, got %d", i, expected.Type, actual.Type)
 				}
 				if actual.Value != expected.Value {
 					t.Errorf("token %d: expected value %q, got %q", i, expected.Value, actual.Value)
 				}
-				if actual.Line != expected.Line {
-					t.Errorf("token %d: expected line %d, got %d", i, expected.Line, actual.Line)
+			}
+		})
+	}
+}
+
+func TestLexer_Keywords(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{"source keyword", "source", SOURCE},
+		{"metadata keyword", "metadata", METADATA},
+		{"cookbook keyword", "cookbook", COOKBOOK},
+		{"group keyword", "group", GROUP},
+		{"do keyword", "do", DO},
+		{"end keyword", "end", END},
+		{"Source uppercase", "Source", SOURCE}, // Should be case insensitive
+		{"COOKBOOK uppercase", "COOKBOOK", COOKBOOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			var lval yySymType
+			tok := lexer.Lex(&lval)
+
+			if tok != tt.expected {
+				t.Errorf("expected token type %d, got %d", tt.expected, tok)
+			}
+		})
+	}
+}
+
+func TestLexer_Identifiers(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple identifier", "nginx", "nginx"},
+		{"identifier with numbers", "nginx2", "nginx2"},
+		{"identifier with underscores", "my_cookbook", "my_cookbook"},
+		// Note: dashes are not part of identifiers in this lexer
+		// They would be tokenized separately
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			var lval yySymType
+			tok := lexer.Lex(&lval)
+
+			if tok != IDENT {
+				t.Errorf("expected IDENT token, got %d", tok)
+			}
+			if lval.str != tt.expected {
+				t.Errorf("expected identifier %q, got %q", tt.expected, lval.str)
+			}
+		})
+	}
+}
+
+func TestLexer_Comments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []TokenInfo
+	}{
+		{
+			name:  "line comment",
+			input: "# This is a comment\ncookbook 'test'",
+			expected: []TokenInfo{
+				{Type: NEWLINE, Value: "\n"},
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'test'"},
+			},
+		},
+		{
+			name:  "comment at end of line",
+			input: "cookbook 'test' # inline comment",
+			expected: []TokenInfo{
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'test'"},
+			},
+		},
+		{
+			name:  "multiple comments",
+			input: "# Comment 1\n# Comment 2\ncookbook 'test'",
+			expected: []TokenInfo{
+				{Type: NEWLINE, Value: "\n"},
+				{Type: NEWLINE, Value: "\n"},
+				{Type: COOKBOOK, Value: ""},
+				{Type: STRING, Value: "'test'"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			tokens := collectTokens(lexer)
+
+			if len(tokens) != len(tt.expected) {
+				t.Fatalf("expected %d tokens, got %d", len(tt.expected), len(tokens))
+			}
+
+			for i, expected := range tt.expected {
+				actual := tokens[i]
+				if actual.Type != expected.Type {
+					t.Errorf("token %d: expected type %d, got %d", i, expected.Type, actual.Type)
 				}
-				if actual.Column != expected.Column {
-					t.Errorf("token %d: expected column %d, got %d", i, expected.Column, actual.Column)
+				if expected.Value != "" && actual.Value != expected.Value {
+					t.Errorf("token %d: expected value %q, got %q", i, expected.Value, actual.Value)
 				}
 			}
 		})
@@ -167,11 +359,8 @@ end
 cookbook 'private', git: 'git@github.com:user/repo.git', branch: 'master'
 `
 
-	lexer := NewLexer(strings.NewReader(input))
-	tokens, err := lexer.Tokenize()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	lexer := NewLexer(input)
+	tokens := collectTokens(lexer)
 
 	// Check that we got a reasonable number of tokens
 	if len(tokens) < 20 {
@@ -182,15 +371,20 @@ cookbook 'private', git: 'git@github.com:user/repo.git', branch: 'master'
 	foundSource := false
 	foundMetadata := false
 	foundGroup := false
+	foundGit := false
 
 	for _, token := range tokens {
 		switch token.Type {
-		case TokenSource:
+		case SOURCE:
 			foundSource = true
-		case TokenMetadata:
+		case METADATA:
 			foundMetadata = true
-		case TokenGroup:
+		case GROUP:
 			foundGroup = true
+		case IDENT:
+			if token.Value == "git" {
+				foundGit = true
+			}
 		}
 	}
 
@@ -203,6 +397,9 @@ cookbook 'private', git: 'git@github.com:user/repo.git', branch: 'master'
 	if !foundGroup {
 		t.Error("expected to find 'group' token")
 	}
+	if !foundGit {
+		t.Error("expected to find 'git' identifier")
+	}
 }
 
 func TestLexer_ErrorHandling(t *testing.T) {
@@ -212,27 +409,110 @@ func TestLexer_ErrorHandling(t *testing.T) {
 		shouldError bool
 	}{
 		{
-			name:        "unterminated string",
-			input:       `"unterminated`,
+			name:        "valid cookbook",
+			input:       `cookbook "test"`,
+			shouldError: false,
+		},
+		{
+			name:        "valid source",
+			input:       `source "https://supermarket.chef.io"`,
+			shouldError: false,
+		},
+		{
+			name:        "valid group",
+			input:       "group :test do\nend",
+			shouldError: false,
+		},
+		{
+			name:        "incomplete group",
+			input:       `group :test`,
 			shouldError: true,
 		},
 		{
-			name:        "valid input",
-			input:       `cookbook "test"`,
-			shouldError: false,
+			name:        "unterminated group",
+			input:       "group :test do\ncookbook 'test'",
+			shouldError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lexer := NewLexer(strings.NewReader(tt.input))
-			_, err := lexer.Tokenize()
+			// Clear any previous errors
+			ClearLastError()
+
+			_, err := ParseBerksfile(tt.input)
 
 			if tt.shouldError && err == nil {
 				t.Error("expected error but got none")
 			}
 			if !tt.shouldError && err != nil {
 				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestLexer_SpecialCharacters(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []TokenInfo
+	}{
+		{
+			name:  "colon",
+			input: ":",
+			expected: []TokenInfo{
+				{Type: COLON, Value: ":"},
+			},
+		},
+		{
+			name:  "comma",
+			input: ",",
+			expected: []TokenInfo{
+				{Type: COMMA, Value: ","},
+			},
+		},
+		{
+			name:  "braces",
+			input: "{}",
+			expected: []TokenInfo{
+				{Type: LBRACE, Value: "{"},
+				{Type: RBRACE, Value: "}"},
+			},
+		},
+		{
+			name:  "hashrocket",
+			input: "=>",
+			expected: []TokenInfo{
+				{Type: HASHROCKET, Value: "=>"},
+			},
+		},
+		{
+			name:  "newline",
+			input: "\n",
+			expected: []TokenInfo{
+				{Type: NEWLINE, Value: "\n"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lexer := NewLexer(tt.input)
+			tokens := collectTokens(lexer)
+
+			if len(tokens) != len(tt.expected) {
+				t.Fatalf("expected %d tokens, got %d", len(tt.expected), len(tokens))
+			}
+
+			for i, expected := range tt.expected {
+				actual := tokens[i]
+				if actual.Type != expected.Type {
+					t.Errorf("token %d: expected type %d, got %d", i, expected.Type, actual.Type)
+				}
+				if actual.Value != expected.Value {
+					t.Errorf("token %d: expected value %q, got %q", i, expected.Value, actual.Value)
+				}
 			}
 		})
 	}

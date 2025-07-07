@@ -2,7 +2,7 @@
 
 %{
 
-package berksfileparser
+package berksfile
 
 import (
     "strings"

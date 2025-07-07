@@ -46,15 +46,12 @@ Examples:
 		var sourceManager *source.Manager
 
 		if _, err := os.Stat("Berksfile"); err == nil {
-			berksfileContent, err := os.ReadFile("Berksfile")
+			bf, err := berksfile.ParseFile("Berksfile")
 			if err == nil {
-				bf, err := berksfile.ParseString(string(berksfileContent))
-				if err == nil {
-					factory := source.NewFactory()
-					sourceManager, err = factory.CreateFromBerksfile(bf)
-					if err != nil {
-						log.Error(err)
-					}
+				factory := source.NewFactory()
+				sourceManager, err = factory.CreateFromBerksfile(bf)
+				if err != nil {
+					log.Error(err)
 				}
 			}
 		}

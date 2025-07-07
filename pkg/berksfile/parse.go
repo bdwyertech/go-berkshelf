@@ -1,4 +1,4 @@
-package berksfileparser
+package berksfile
 
 import (
 	"fmt"
@@ -40,6 +40,6 @@ func ParseBerksfile(input string) (*Berksfile, error) {
 	if Result == nil {
 		return nil, fmt.Errorf("parse error - Result is nil")
 	}
-	
+
 	return Result, nil
 }

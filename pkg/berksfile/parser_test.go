@@ -161,7 +161,7 @@ func TestParser_BasicBerksfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			berksfile, err := ParseString(tt.input)
+			berksfile, err := ParseBerksfile(tt.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -186,7 +186,7 @@ group :development, :test do
 end
 `
 
-	berksfile, err := ParseString(input)
+	berksfile, err := ParseBerksfile(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -262,7 +262,7 @@ group :development do
 end
 `
 
-	berksfile, err := ParseString(input)
+	berksfile, err := ParseBerksfile(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestParser_ErrorHandling(t *testing.T) {
 			name:        "invalid constraint",
 			input:       `cookbook 'nginx', 'invalid constraint'`,
 			shouldError: true,
-			errorMsg:    "unexpected token",
+			errorMsg:    "invalid version constraint",
 		},
 		{
 			name:        "missing cookbook name",
@@ -364,7 +364,7 @@ func TestParser_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseString(tt.input)
+			_, err := ParseBerksfile(tt.input)
 			if tt.shouldError && err == nil {
 				t.Error("expected error but got none")
 			}
