@@ -10,38 +10,83 @@ import __yyfmt__ "fmt"
 
 import (
 	"strings"
+
+	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
 )
 
-// Berksfile represents a parsed Berksfile DSL root.
+// CookbookDef represents a cookbook definition in a Berksfile
+type CookbookDef struct {
+	Name       string
+	Constraint *berkshelf.Constraint
+	Source     *berkshelf.SourceLocation
+	Groups     []string
+}
+
+// Berksfile represents a parsed Berksfile
 type Berksfile struct {
-	Sources   []*Source
-	Metadata  bool
-	Cookbooks []*Cookbook
-	Groups    []*Group
-}
-
-// Source defines a cookbook source (supermarket, chef_server, artifactory, etc).
-type Source struct {
-	Type    string            // e.g. "chef_server", "supermarket"
-	URL     string            // e.g. "https://chef.example.com"
-	Options map[string]string // e.g. user, client_key, api_key
-}
-
-// Cookbook represents a cookbook declaration.
-type Cookbook struct {
-	Name    string            // cookbook name
-	Version string            // version constraint, e.g. "~> 1.2"
-	Options map[string]string // git, branch, path, etc.
-	Groups  []string          // group names, empty if none
-}
-
-// Group represents a named group block with multiple cookbooks.
-type Group struct {
-	Name      string
-	Cookbooks []*Cookbook
+	Sources     []string                  // List of default sources
+	Cookbooks   []*CookbookDef            // All cookbook definitions
+	Groups      map[string][]*CookbookDef // Grouped cookbooks
+	HasMetadata bool                      // Whether metadata directive is present
 }
 
 var Result *Berksfile
+
+// GetCookbooks returns all cookbooks, optionally filtered by groups
+func (b *Berksfile) GetCookbooks(groups ...string) []*CookbookDef {
+	if len(groups) == 0 {
+		return b.Cookbooks
+	}
+
+	// Create a map to avoid duplicates
+	cookbookMap := make(map[string]*CookbookDef)
+
+	for _, group := range groups {
+		if groupCookbooks, ok := b.Groups[group]; ok {
+			for _, cookbook := range groupCookbooks {
+				cookbookMap[cookbook.Name] = cookbook
+			}
+		}
+	}
+
+	// Convert map to slice
+	result := make([]*CookbookDef, 0, len(cookbookMap))
+	for _, cookbook := range cookbookMap {
+		result = append(result, cookbook)
+	}
+
+	return result
+}
+
+// GetCookbook returns a specific cookbook by name
+func (b *Berksfile) GetCookbook(name string) *CookbookDef {
+	for _, cookbook := range b.Cookbooks {
+		if cookbook.Name == name {
+			return cookbook
+		}
+	}
+	return nil
+}
+
+// HasGroup checks if a group exists
+func (b *Berksfile) HasGroup(name string) bool {
+	_, ok := b.Groups[name]
+	return ok
+}
+
+// GetGroups returns all group names
+func (b *Berksfile) GetGroups() []string {
+	groups := make([]string, 0, len(b.Groups))
+	for group := range b.Groups {
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+// ParseConstraint parses a version constraint string
+func ParseConstraint(constraintStr string) (*berkshelf.Constraint, error) {
+	return berkshelf.NewConstraint(constraintStr)
+}
 
 func trimQuotes(s string) string {
 	return strings.Trim(s, `"'`)
@@ -64,10 +109,23 @@ type kv struct {
 	value string
 }
 
+// Source represents a source definition in a Berksfile
+type Source struct {
+	Type    string
+	URL     string
+	Options map[string]string
+}
+
+// Group represents a group definition in a Berksfile
+type Group struct {
+	Name      string
+	Cookbooks []*CookbookDef
+}
+
 // Collections type to hold multiple items with metadata flag
 type collections struct {
 	sources   []*Source
-	cookbooks []*Cookbook
+	cookbooks []*CookbookDef
 	groups    []*Group
 	metadata  bool
 }
@@ -75,20 +133,20 @@ type collections struct {
 // Statement result type
 type stmtResult struct {
 	source   *Source
-	cookbook *Cookbook
+	cookbook *CookbookDef
 	group    *Group
 	metadata bool
 }
 
-//line berksfile.y:81
+//line berksfile.y:139
 type yySymType struct {
 	yys         int
 	str         string
 	source      *Source
-	cookbook    *Cookbook
+	cookbook    *CookbookDef
 	group       *Group
 	sources     []*Source
-	cookbooks   []*Cookbook
+	cookbooks   []*CookbookDef
 	groups      []*Group
 	opts        map[string]string
 	sa          sourceArgs
@@ -140,7 +198,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line berksfile.y:381
+//line berksfile.y:544
 
 //line yacctab:1
 var yyExca = [...]int8{
@@ -151,66 +209,72 @@ var yyExca = [...]int8{
 
 const yyPrivate = 57344
 
-const yyLast = 79
+const yyLast = 82
 
 var yyAct = [...]int8{
-	42, 31, 32, 58, 12, 8, 46, 10, 11, 12,
-	13, 10, 11, 12, 13, 61, 12, 39, 43, 66,
-	15, 33, 41, 34, 5, 52, 38, 49, 44, 39,
-	55, 37, 40, 33, 29, 34, 23, 30, 25, 51,
-	53, 48, 48, 50, 26, 27, 56, 33, 41, 34,
-	22, 21, 20, 60, 63, 18, 17, 64, 65, 57,
-	54, 28, 45, 62, 59, 36, 35, 4, 47, 9,
-	24, 14, 19, 7, 16, 6, 3, 2, 1,
+	50, 36, 37, 8, 10, 11, 12, 13, 10, 11,
+	12, 13, 12, 12, 66, 47, 70, 15, 38, 49,
+	39, 5, 60, 56, 43, 46, 63, 51, 47, 45,
+	38, 34, 39, 42, 35, 28, 52, 48, 38, 49,
+	39, 29, 23, 24, 25, 55, 30, 59, 61, 57,
+	58, 54, 44, 26, 64, 31, 32, 21, 20, 18,
+	17, 69, 67, 65, 62, 68, 33, 53, 4, 22,
+	41, 40, 14, 9, 27, 19, 7, 16, 6, 3,
+	2, 1,
 }
 
 var yyPact = [...]int16{
-	7, -1000, -1000, 3, -1000, -1000, -1000, -1000, -1000, -1000,
-	45, -1000, 41, 38, -1000, -1000, -1000, -1000, 24, 25,
-	-1000, -1000, 34, 50, -1000, 23, 58, 57, 18, 13,
-	37, -1000, 5, 16, 52, 10, 10, 37, 11, 49,
-	15, 1, -1000, 37, 48, -13, 55, -2, -1000, -1000,
-	54, -1000, 37, -1000, -1000, -1000, 5, -1000, 47, -1000,
-	-1000, -1000, -1000, 4, -1000, -1000, -1000,
+	4, -1000, -1000, 0, -1000, -1000, -1000, -1000, -1000, -1000,
+	49, -1000, 47, 32, -1000, -1000, -1000, -1000, 41, 22,
+	-1000, -1000, 33, -1000, -1000, 45, 55, -1000, 20, 7,
+	40, -1000, -1000, 16, 12, 28, -1000, 14, 24, 57,
+	42, 6, -1000, -1000, 39, 28, 8, 53, 11, -1,
+	-1000, 28, 52, -2, -1000, -1000, -1000, -1000, -1000, -1000,
+	28, -1000, -1000, -1000, 14, -1000, 50, 1, -1000, -1000,
+	-1000,
 }
 
 var yyPgo = [...]int8{
-	0, 78, 77, 76, 67, 75, 74, 73, 5, 72,
-	70, 69, 6, 68, 1, 0, 2,
+	0, 81, 80, 79, 68, 78, 77, 76, 3, 75,
+	74, 73, 71, 70, 1, 0, 2, 69,
 }
 
 var yyR1 = [...]int8{
 	0, 1, 2, 2, 3, 3, 3, 3, 4, 4,
 	4, 4, 5, 6, 6, 6, 7, 8, 9, 9,
-	10, 10, 10, 10, 10, 10, 11, 11, 12, 12,
-	13, 13, 13, 13, 14, 15, 15, 16, 16, 16,
+	10, 10, 10, 10, 10, 10, 11, 17, 17, 17,
+	17, 17, 17, 12, 12, 13, 13, 13, 13, 14,
+	15, 15, 16, 16, 16,
 }
 
 var yyR2 = [...]int8{
 	0, 1, 1, 0, 2, 2, 1, 1, 1, 1,
 	1, 1, 2, 1, 3, 5, 1, 3, 1, 1,
-	2, 4, 6, 2, 4, 0, 6, 6, 1, 0,
-	2, 2, 1, 1, 2, 3, 0, 3, 4, 3,
+	2, 4, 6, 2, 4, 0, 5, 4, 4, 1,
+	1, 2, 2, 1, 0, 2, 2, 1, 1, 2,
+	3, 0, 3, 4, 3,
 }
 
 var yyChk = [...]int16{
 	-1000, -1, -2, -3, -4, 17, -5, -7, -8, -11,
 	4, 5, 6, 7, -4, 17, -6, 11, 10, -9,
-	11, 10, 12, 12, -10, 13, 10, 11, 11, 11,
-	14, -14, -16, 10, 12, 8, 8, 13, 13, 16,
-	-14, 11, -15, 13, 12, 10, -12, -13, -8, 17,
-	-12, -14, 14, -14, 11, 15, -16, 11, 16, 9,
-	-8, 17, 9, -14, -15, 11, 15,
+	11, 10, -17, 10, 11, 12, 12, -10, 13, 8,
+	13, 10, 11, 11, 11, 14, -14, -16, 10, 12,
+	-12, -13, -8, 17, 12, 13, 13, 16, -14, 11,
+	-15, 13, 12, 10, 9, -8, 17, 10, 11, -14,
+	14, -14, 11, 15, -16, 11, 16, -14, -15, 11,
+	15,
 }
 
 var yyDef = [...]int8{
 	3, -2, 1, 2, 6, 7, 8, 9, 10, 11,
 	0, 16, 0, 0, 4, 5, 12, 13, 0, 25,
-	18, 19, 0, 0, 17, 0, 0, 0, 14, 20,
-	0, 23, 36, 0, 0, 29, 29, 0, 0, 0,
-	0, 0, 34, 0, 0, 0, 0, 28, 32, 33,
-	0, 15, 0, 24, 39, 21, 36, 37, 0, 26,
-	30, 31, 27, 0, 35, 38, 22,
+	18, 19, 0, 29, 30, 0, 0, 17, 0, 34,
+	0, 31, 32, 14, 20, 0, 23, 41, 0, 0,
+	0, 33, 37, 38, 0, 0, 0, 0, 0, 0,
+	39, 0, 0, 0, 26, 35, 36, 27, 28, 15,
+	0, 24, 44, 21, 41, 42, 0, 0, 40, 43,
+	22,
 }
 
 var yyTok1 = [...]int8{
@@ -565,34 +629,76 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:118
+//line berksfile.y:177
 		{
+			// Convert sources from []*Source to []string
+			sources := make([]string, len(yyDollar[1].collections.sources))
+			for i, src := range yyDollar[1].collections.sources {
+				sources[i] = src.URL
+			}
+
+			// Collect all cookbooks (both standalone and from groups)
+			allCookbooks := make([]*CookbookDef, 0, len(yyDollar[1].collections.cookbooks))
+			allCookbooks = append(allCookbooks, yyDollar[1].collections.cookbooks...)
+
+			// Convert groups from []*Group to map[string][]*CookbookDef
+			groups := make(map[string][]*CookbookDef)
+			for _, group := range yyDollar[1].collections.groups {
+				// Add group cookbooks to the main cookbook list
+				allCookbooks = append(allCookbooks, group.Cookbooks...)
+
+				// Handle group names (could be comma-separated for multiple groups)
+				groupNames := strings.Split(group.Name, ",")
+
+				for _, groupName := range groupNames {
+					groupName = strings.TrimSpace(groupName)
+					if groups[groupName] == nil {
+						groups[groupName] = []*CookbookDef{}
+					}
+
+					// Add cookbooks to this group
+					for _, cb := range group.Cookbooks {
+						// Check if cookbook already exists in this group
+						found := false
+						for _, existing := range groups[groupName] {
+							if existing.Name == cb.Name {
+								found = true
+								break
+							}
+						}
+						if !found {
+							groups[groupName] = append(groups[groupName], cb)
+						}
+					}
+				}
+			}
+
 			Result = &Berksfile{
-				Sources:   yyDollar[1].collections.sources,
-				Metadata:  yyDollar[1].collections.metadata,
-				Cookbooks: yyDollar[1].collections.cookbooks,
-				Groups:    yyDollar[1].collections.groups,
+				Sources:     sources,
+				Cookbooks:   allCookbooks,
+				Groups:      groups,
+				HasMetadata: yyDollar[1].collections.metadata,
 			}
 			yyVAL.collections = yyDollar[1].collections
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:130
+//line berksfile.y:231
 		{
 			yyVAL.collections = yyDollar[1].collections
 		}
 	case 3:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:133
+//line berksfile.y:234
 		{
 			yyVAL.collections.sources = []*Source{}
-			yyVAL.collections.cookbooks = []*Cookbook{}
+			yyVAL.collections.cookbooks = []*CookbookDef{}
 			yyVAL.collections.groups = []*Group{}
 			yyVAL.collections.metadata = false
 		}
 	case 4:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:142
+//line berksfile.y:243
 		{
 			yyVAL.collections.sources = yyDollar[1].collections.sources
 			yyVAL.collections.cookbooks = yyDollar[1].collections.cookbooks
@@ -615,16 +721,16 @@ yydefault:
 		}
 	case 5:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:162
+//line berksfile.y:263
 		{
 			yyVAL.collections = yyDollar[1].collections
 		}
 	case 6:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:165
+//line berksfile.y:266
 		{
 			yyVAL.collections.sources = []*Source{}
-			yyVAL.collections.cookbooks = []*Cookbook{}
+			yyVAL.collections.cookbooks = []*CookbookDef{}
 			yyVAL.collections.groups = []*Group{}
 			yyVAL.collections.metadata = false
 
@@ -644,16 +750,16 @@ yydefault:
 		}
 	case 7:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:185
+//line berksfile.y:286
 		{
 			yyVAL.collections.sources = []*Source{}
-			yyVAL.collections.cookbooks = []*Cookbook{}
+			yyVAL.collections.cookbooks = []*CookbookDef{}
 			yyVAL.collections.groups = []*Group{}
 			yyVAL.collections.metadata = false
 		}
 	case 8:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:194
+//line berksfile.y:295
 		{
 			yyVAL.stmt.source = yyDollar[1].source
 			yyVAL.stmt.cookbook = nil
@@ -662,7 +768,7 @@ yydefault:
 		}
 	case 9:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:200
+//line berksfile.y:301
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = nil
@@ -671,7 +777,7 @@ yydefault:
 		}
 	case 10:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:206
+//line berksfile.y:307
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = yyDollar[1].cookbook
@@ -680,7 +786,7 @@ yydefault:
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:212
+//line berksfile.y:313
 		{
 			yyVAL.stmt.source = nil
 			yyVAL.stmt.cookbook = nil
@@ -689,7 +795,7 @@ yydefault:
 		}
 	case 12:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:221
+//line berksfile.y:322
 		{
 			yyVAL.source = &Source{
 				Type:    yyDollar[2].sa.typ,
@@ -699,7 +805,7 @@ yydefault:
 		}
 	case 13:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:231
+//line berksfile.y:332
 		{
 			yyVAL.sa.typ = "supermarket"
 			yyVAL.sa.url = trimQuotes(yyDollar[1].str)
@@ -707,7 +813,7 @@ yydefault:
 		}
 	case 14:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:236
+//line berksfile.y:337
 		{
 			yyVAL.sa.typ = yyDollar[1].str
 			yyVAL.sa.url = trimQuotes(yyDollar[3].str)
@@ -715,7 +821,7 @@ yydefault:
 		}
 	case 15:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line berksfile.y:241
+//line berksfile.y:342
 		{
 			yyVAL.sa.typ = yyDollar[1].str
 			yyVAL.sa.url = trimQuotes(yyDollar[3].str)
@@ -723,139 +829,213 @@ yydefault:
 		}
 	case 16:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:249
+//line berksfile.y:350
 		{
 			yyVAL.boolVal = true
 		}
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:255
+//line berksfile.y:356
 		{
-			yyVAL.cookbook = &Cookbook{
-				Name:    yyDollar[2].str,
-				Version: yyDollar[3].cbTail.version,
-				Options: yyDollar[3].cbTail.options,
+			constraint, _ := ParseConstraint(">= 0.0.0")
+			if yyDollar[3].cbTail.version != "" {
+				if c, err := ParseConstraint(yyDollar[3].cbTail.version); err != nil {
+					yylex.Error("invalid version constraint: " + yyDollar[3].cbTail.version)
+					return 1
+				} else {
+					constraint = c
+				}
+			}
+
+			source := &berkshelf.SourceLocation{}
+			if yyDollar[3].cbTail.options != nil {
+				source.Options = make(map[string]any)
+				if gitUrl, ok := yyDollar[3].cbTail.options["git"]; ok {
+					source.Type = "git"
+					source.URL = gitUrl
+					if branch, ok := yyDollar[3].cbTail.options["branch"]; ok {
+						source.Ref = branch
+						source.Options["branch"] = branch
+					}
+					if ref, ok := yyDollar[3].cbTail.options["ref"]; ok {
+						source.Ref = ref
+						source.Options["ref"] = ref
+					}
+				} else if github, ok := yyDollar[3].cbTail.options["github"]; ok {
+					source.Type = "git"
+					source.URL = "https://github.com/" + github + ".git"
+				} else if path, ok := yyDollar[3].cbTail.options["path"]; ok {
+					source.Type = "path"
+					source.Path = path
+				}
+			}
+
+			yyVAL.cookbook = &CookbookDef{
+				Name:       yyDollar[2].str,
+				Constraint: constraint,
+				Source:     source,
+				Groups:     []string{},
 			}
 		}
 	case 18:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:265
+//line berksfile.y:400
 		{
 			yyVAL.str = trimQuotes(yyDollar[1].str)
 		}
 	case 19:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:266
+//line berksfile.y:401
 		{
 			yyVAL.str = yyDollar[1].str
 		}
 	case 20:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:270
+//line berksfile.y:405
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = nil
 		}
 	case 21:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:274
+//line berksfile.y:409
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = yyDollar[3].opts
 		}
 	case 22:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line berksfile.y:278
+//line berksfile.y:413
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = yyDollar[5].opts
 		}
 	case 23:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:282
+//line berksfile.y:417
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = yyDollar[2].opts
 		}
 	case 24:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:286
+//line berksfile.y:421
 		{
 			yyVAL.cbTail.version = trimQuotes(yyDollar[2].str)
 			yyVAL.cbTail.options = yyDollar[4].opts
 		}
 	case 25:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:290
+//line berksfile.y:425
 		{
 			yyVAL.cbTail.version = ""
 			yyVAL.cbTail.options = nil
 		}
 	case 26:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line berksfile.y:297
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line berksfile.y:432
 		{
-			groupName := yyDollar[3].str
-			for _, cb := range yyDollar[5].cookbooks {
-				cb.Groups = append(cb.Groups, groupName)
+			// For multiple groups, we need to create separate Group entries
+			// but the cookbooks will be shared across groups
+			groupNames := make([]string, len(yyDollar[2].sources))
+			for i, src := range yyDollar[2].sources {
+				groupNames[i] = src.URL // We're reusing Source.URL to store group names
 			}
+
+			// Add group names to each cookbook
+			for _, cb := range yyDollar[4].cookbooks {
+				cb.Groups = append(cb.Groups, groupNames...)
+			}
+
+			// For empty groups, we still need to return a Group object with the first name
+			// The berksfile rule will handle creating entries for all group names
+			groupName := groupNames[0]
+			if len(groupNames) > 1 {
+				// For multiple groups, we need to create a special marker
+				// The berksfile rule will expand this into multiple group entries
+				groupName = strings.Join(groupNames, ",")
+			}
+
 			yyVAL.group = &Group{
 				Name:      groupName,
-				Cookbooks: yyDollar[5].cookbooks,
+				Cookbooks: yyDollar[4].cookbooks,
 			}
 		}
 	case 27:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line berksfile.y:307
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line berksfile.y:462
 		{
-			groupName := trimQuotes(yyDollar[3].str)
-			for _, cb := range yyDollar[5].cookbooks {
-				cb.Groups = append(cb.Groups, groupName)
-			}
-			yyVAL.group = &Group{
-				Name:      groupName,
-				Cookbooks: yyDollar[5].cookbooks,
-			}
+			yyVAL.sources = append(yyDollar[1].sources, &Source{URL: yyDollar[4].str})
 		}
 	case 28:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:320
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line berksfile.y:465
 		{
-			yyVAL.cookbooks = yyDollar[1].cookbooks
+			yyVAL.sources = append(yyDollar[1].sources, &Source{URL: trimQuotes(yyDollar[4].str)})
 		}
 	case 29:
-		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:323
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line berksfile.y:468
 		{
-			yyVAL.cookbooks = []*Cookbook{}
+			yyVAL.sources = []*Source{{URL: yyDollar[1].str}}
 		}
 	case 30:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:329
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line berksfile.y:471
 		{
-			yyVAL.cookbooks = append(yyDollar[1].cookbooks, yyDollar[2].cookbook)
+			yyVAL.sources = []*Source{{URL: trimQuotes(yyDollar[1].str)}}
 		}
 	case 31:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:332
+//line berksfile.y:474
 		{
-			yyVAL.cookbooks = yyDollar[1].cookbooks
+			yyVAL.sources = []*Source{{URL: yyDollar[2].str}}
 		}
 	case 32:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:335
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line berksfile.y:477
 		{
-			yyVAL.cookbooks = []*Cookbook{yyDollar[1].cookbook}
+			yyVAL.sources = []*Source{{URL: trimQuotes(yyDollar[2].str)}}
 		}
 	case 33:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line berksfile.y:338
+//line berksfile.y:483
 		{
-			yyVAL.cookbooks = []*Cookbook{}
+			yyVAL.cookbooks = yyDollar[1].cookbooks
 		}
 	case 34:
+		yyDollar = yyS[yypt-0 : yypt+1]
+//line berksfile.y:486
+		{
+			yyVAL.cookbooks = []*CookbookDef{}
+		}
+	case 35:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line berksfile.y:344
+//line berksfile.y:492
+		{
+			yyVAL.cookbooks = append(yyDollar[1].cookbooks, yyDollar[2].cookbook)
+		}
+	case 36:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line berksfile.y:495
+		{
+			yyVAL.cookbooks = yyDollar[1].cookbooks
+		}
+	case 37:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line berksfile.y:498
+		{
+			yyVAL.cookbooks = []*CookbookDef{yyDollar[1].cookbook}
+		}
+	case 38:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line berksfile.y:501
+		{
+			yyVAL.cookbooks = []*CookbookDef{}
+		}
+	case 39:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line berksfile.y:507
 		{
 			m := map[string]string{yyDollar[1].kv.key: yyDollar[1].kv.value}
 			for k, v := range yyDollar[2].opts {
@@ -863,9 +1043,9 @@ yydefault:
 			}
 			yyVAL.opts = m
 		}
-	case 35:
+	case 40:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:354
+//line berksfile.y:517
 		{
 			m := map[string]string{yyDollar[2].kv.key: yyDollar[2].kv.value}
 			for k, v := range yyDollar[3].opts {
@@ -873,29 +1053,29 @@ yydefault:
 			}
 			yyVAL.opts = m
 		}
-	case 36:
+	case 41:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line berksfile.y:361
+//line berksfile.y:524
 		{
 			yyVAL.opts = map[string]string{}
 		}
-	case 37:
+	case 42:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:367
+//line berksfile.y:530
 		{
 			yyVAL.kv.key = yyDollar[1].str
 			yyVAL.kv.value = trimQuotes(yyDollar[3].str)
 		}
-	case 38:
+	case 43:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line berksfile.y:371
+//line berksfile.y:534
 		{
 			yyVAL.kv.key = yyDollar[2].str
 			yyVAL.kv.value = trimQuotes(yyDollar[4].str)
 		}
-	case 39:
+	case 44:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line berksfile.y:375
+//line berksfile.y:538
 		{
 			yyVAL.kv.key = trimQuotes(yyDollar[1].str)
 			yyVAL.kv.value = trimQuotes(yyDollar[3].str)

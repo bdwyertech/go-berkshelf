@@ -9,7 +9,13 @@ import (
 func ParseBerksfile(input string) (*Berksfile, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
-		return nil, fmt.Errorf("empty input")
+		// Return empty but valid Berksfile for empty input
+		return &Berksfile{
+			Sources:     []string{},
+			Cookbooks:   []*CookbookDef{},
+			Groups:      make(map[string][]*CookbookDef),
+			HasMetadata: false,
+		}, nil
 	}
 
 	var parsePanic any
@@ -21,6 +27,7 @@ func ParseBerksfile(input string) (*Berksfile, error) {
 
 	lastParseError = nil
 	lexer := NewLexer(input)
+	lexer.sourceText = input // Store source text for error reporting
 	Result = nil
 	yyParse(lexer)
 
@@ -33,9 +40,6 @@ func ParseBerksfile(input string) (*Berksfile, error) {
 	if Result == nil {
 		return nil, fmt.Errorf("parse error - Result is nil")
 	}
-	// Consider empty Berksfile as error (no sources, cookbooks, or groups)
-	if len(Result.Sources) == 0 && len(Result.Cookbooks) == 0 && len(Result.Groups) == 0 {
-		return nil, fmt.Errorf("no valid content found")
-	}
+	
 	return Result, nil
 }

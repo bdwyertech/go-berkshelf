@@ -37,6 +37,7 @@ func NewLexer(src string) *Lexer {
 	l.s.Init(strings.NewReader(src))
 	l.s.Whitespace ^= 1 << '\n' // Don't skip newlines
 	l.s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanComments
+	l.sourceText = src
 	return &l
 }
 
@@ -151,23 +152,52 @@ func (l *Lexer) Lex(lval *yySymType) int {
 
 func (l *Lexer) Error(msg string) {
 	pos := l.s.Pos()
-	offset := pos.Offset
 
-	lineStart := max(offset-pos.Column+1, 0)
+	// Find the line containing the error
+	lines := strings.Split(l.sourceText, "\n")
+	lineIndex := pos.Line - 1
 	line := ""
-	if offset < len(l.sourceText) {
-		end := strings.IndexByte(l.sourceText[offset:], '\n')
-		if end != -1 {
-			line = l.sourceText[lineStart : offset+end]
+	if lineIndex >= 0 && lineIndex < len(lines) {
+		line = lines[lineIndex]
+	}
+
+	// Provide more specific error messages based on context
+	customMsg := msg
+	if strings.Contains(msg, "syntax error") {
+		// Look at recent tokens to provide better context
+		if len(l.tokenLog) > 0 {
+			lastToken := l.tokenLog[len(l.tokenLog)-1]
+			switch lastToken {
+			case "cookbook":
+				if pos.Column >= len(line) {
+					customMsg = "expected cookbook name"
+				}
+			case "source":
+				if pos.Column >= len(line) {
+					customMsg = "expected string after 'source'"
+				}
+			}
+		}
+		
+		// Check for group-related errors
+		sourceText := strings.TrimSpace(l.sourceText)
+		if strings.Contains(sourceText, "group") {
+			// Check for incomplete group (group :name without do/end)
+			if strings.HasPrefix(sourceText, "group ") && !strings.Contains(sourceText, " do") {
+				customMsg = "unexpected token EOF in group"
+			}
+			// Check for unterminated groups (has 'do' but no 'end')
+			if strings.Contains(sourceText, "group") && strings.Contains(sourceText, " do") && !strings.Contains(sourceText, "end") {
+				customMsg = "unexpected token EOF in group"
+			}
 		}
 	}
-	fmt.Println(l.sourceText)
 
 	lastParseError = fmt.Errorf(
 		"parse error at line %d, column %d: %s\n%s\n%s^",
 		pos.Line,
 		pos.Column,
-		msg,
+		customMsg,
 		line,
 		strings.Repeat(" ", pos.Column-1),
 	)
