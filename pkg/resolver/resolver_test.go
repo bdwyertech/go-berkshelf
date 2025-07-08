@@ -74,12 +74,25 @@ func (m *mockSource) addCookbook(name string, version string, dependencies map[s
 	}
 	m.cookbooks[name] = append(m.cookbooks[name], v)
 
-	// Create cookbook metadata
+	// Create cookbook with proper metadata
 	cookbook := berkshelf.NewCookbook(name, v)
+	
+	// Create metadata
+	metadata := &berkshelf.Metadata{
+		Name:         name,
+		Version:      v,
+		Dependencies: make(map[string]*berkshelf.Constraint),
+	}
+	
+	// Add dependencies to both cookbook and metadata
 	for depName, depVer := range dependencies {
 		constraint, _ := berkshelf.NewConstraint(depVer)
 		cookbook.AddDependency(depName, constraint)
+		metadata.Dependencies[depName] = constraint
 	}
+	
+	// Set the metadata
+	cookbook.Metadata = metadata
 
 	key := fmt.Sprintf("%s@%s", name, version)
 	m.metadata[key] = cookbook
@@ -134,14 +147,20 @@ func TestBasicResolution(t *testing.T) {
 	}
 
 	// Verify versions
-	nginx, _ := resolution.GetCookbook("nginx")
+	nginx, found := resolution.GetCookbook("nginx")
+	if !found || nginx == nil {
+		t.Fatalf("nginx cookbook not found in resolution")
+	}
 	if nginx.Version.String() != "2.7.6" {
 		t.Errorf("Expected nginx version 2.7.6, got %s", nginx.Version.String())
 	}
 
 	// apt should satisfy ~> 2.2 which means >= 2.2.0, < 3.0.0
 	// The resolver should pick the highest version that satisfies: 2.9.2
-	apt, _ := resolution.GetCookbook("apt")
+	apt, found := resolution.GetCookbook("apt")
+	if !found || apt == nil {
+		t.Fatalf("apt cookbook not found in resolution")
+	}
 	if apt.Version.String() != "2.9.2" {
 		t.Errorf("Expected apt version 2.9.2 (highest version satisfying ~> 2.2), got %s", apt.Version.String())
 	}

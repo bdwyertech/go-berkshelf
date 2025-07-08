@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyer/go-berkshelf/pkg/source"
 )
 
 // Resolver defines the interface for dependency resolution
@@ -30,6 +31,7 @@ type ResolvedCookbook struct {
 	Name         string
 	Version      *berkshelf.Version
 	Source       *berkshelf.SourceLocation
+	SourceRef    source.CookbookSource // Reference to the actual source object
 	Dependencies map[string]*berkshelf.Version
 	Cookbook     *berkshelf.Cookbook
 }

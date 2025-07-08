@@ -50,6 +50,14 @@ func NewLockFile() *LockFile {
 
 // AddCookbook adds a cookbook to the lock file under the specified source
 func (lf *LockFile) AddCookbook(sourceURL string, cookbook *berkshelf.Cookbook, sourceInfo *SourceInfo) {
+	// Handle nil sourceInfo by creating a default one
+	if sourceInfo == nil {
+		sourceInfo = &SourceInfo{
+			Type: "supermarket",
+			URL:  sourceURL,
+		}
+	}
+	
 	// Ensure source exists
 	if lf.Sources[sourceURL] == nil {
 		lf.Sources[sourceURL] = &SourceLock{

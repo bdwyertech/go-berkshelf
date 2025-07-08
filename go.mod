@@ -3,6 +3,7 @@ module github.com/bdwyer/go-berkshelf
 go 1.24.4
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/go-chef/chef v0.30.1
 	github.com/go-git/go-git/v5 v5.16.2
@@ -17,7 +18,6 @@ require (
 )
 
 require (
-	dario.cat/mergo v1.0.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect

@@ -88,11 +88,16 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 
 	// Process each resolved cookbook
 	for _, resolvedCookbook := range resolution.Cookbooks {
-		// Direct usage - no type assertions needed
-		sourceInfo := createSourceInfoFromLocation(resolvedCookbook.Source)
+		// Handle nil source (use default)
+		var sourceInfo *SourceInfo
+		var sourceURL string
 		
-		// Use source location URL directly
-		sourceURL := resolvedCookbook.Source.URL
+		if resolvedCookbook.Source != nil {
+			sourceInfo = createSourceInfoFromLocation(resolvedCookbook.Source)
+			sourceURL = resolvedCookbook.Source.URL
+		}
+		
+		// Use default source if URL is empty or source is nil
 		if sourceURL == "" {
 			sourceURL = source.PUBLIC_SUPERMARKET
 		}

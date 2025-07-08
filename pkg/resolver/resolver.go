@@ -3,9 +3,11 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sort"
 	"sync"
 
+	"github.com/sourcegraph/conc/pool"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
@@ -17,6 +19,7 @@ type DefaultResolver struct {
 	sources       []source.CookbookSource
 	cache         *ResolutionCache
 	maxCandidates int
+	workerCount   int
 }
 
 // ResolutionCache caches cookbook metadata and available versions
@@ -31,7 +34,8 @@ func NewResolver(sources []source.CookbookSource) *DefaultResolver {
 	return &DefaultResolver{
 		sources:       sources,
 		cache:         NewResolutionCache(),
-		maxCandidates: 100, // Maximum versions to consider per cookbook
+		maxCandidates: 100,                  // Maximum versions to consider per cookbook
+		workerCount:   runtime.NumCPU() * 2, // Good for I/O bound operations
 	}
 }
 
@@ -43,144 +47,207 @@ func NewResolutionCache() *ResolutionCache {
 	}
 }
 
-// Resolve implements the Resolver interface
+// Resolve implements concurrent I/O operations for dependency resolution
 func (r *DefaultResolver) Resolve(ctx context.Context, requirements []*Requirement) (*Resolution, error) {
-	// Create a new resolution
+	log.Debugf("Starting concurrent dependency resolution with %d workers...", r.workerCount)
+
 	resolution := NewResolution()
 
-	// Create a work queue for cookbooks to resolve
-	queue := make([]*Requirement, len(requirements))
-	copy(queue, requirements)
-
-	// Track what we've already processed
-	processed := make(map[string]bool)
-
-	// Process the queue until empty
-	for len(queue) > 0 {
-		// Take the first requirement from the queue
-		req := queue[0]
-		queue = queue[1:]
-
-		// Skip if already processed
-		if processed[req.Name] {
-			continue
-		}
-		processed[req.Name] = true
-
-		// Find the best version that satisfies the constraint
-		version, source, err := r.findBestVersion(ctx, req)
-		if err != nil {
-			resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
-			continue
-		}
-		log.Infof("Using %s (%s) from %s", req.Name, version.String(), source.Name())
-
-		// Fetch the cookbook metadata
-		cookbook, err := r.fetchCookbook(ctx, req.Name, version, source)
-		if err != nil {
-			resolution.AddError(fmt.Errorf("failed to fetch %s@%s: %w", req.Name, version.String(), err))
-			continue
-		}
-
-		// Create source location from the actual source that provided the cookbook
-		sourceLocation := source.GetSourceLocation()
-
-		// Add to resolution
-		resolved := &ResolvedCookbook{
-			Name:         cookbook.Name,
-			Version:      version,
-			Source:       sourceLocation,
-			Dependencies: make(map[string]*berkshelf.Version),
-			Cookbook:     cookbook,
-		}
-
-		// Add to graph
-		node := resolution.Graph.AddCookbook(cookbook)
-		node.Resolved = true
-
-		// Process dependencies
-		for depName, depConstraint := range cookbook.Dependencies {
-			// Add dependency to queue if not already processed
-			if !processed[depName] {
-				depReq := NewRequirement(depName, depConstraint)
-				queue = append(queue, depReq)
-			}
-
-			// Add edge in graph
-			if depNode, exists := resolution.Graph.GetCookbook(depName); exists {
-				resolution.Graph.AddDependency(node, depNode, depConstraint)
-			} else {
-				// Create placeholder node for dependency
-				depCookbook := &berkshelf.Cookbook{
-					Name: depName,
-				}
-				depNode := resolution.Graph.AddCookbook(depCookbook)
-				resolution.Graph.AddDependency(node, depNode, depConstraint)
-			}
-		}
-
-		resolution.AddCookbook(resolved)
+	// Phase 1: Parallel version fetching for all requirements
+	versionMap, err := r.fetchAllVersionsConcurrently(ctx, requirements)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch versions: %w", err)
 	}
 
-	// Check for cycles
-	if resolution.Graph.HasCycles() {
-		resolution.AddError(fmt.Errorf("circular dependency detected"))
+	// Phase 2: Sequential dependency resolution (must be sequential)
+	resolvedCookbooks, err := r.resolveSequentially(ctx, requirements, versionMap, resolution)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
+	}
+
+	// Phase 3: Parallel cookbook downloading
+	err = r.downloadCookbooksConcurrently(ctx, resolvedCookbooks, resolution)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download cookbooks: %w", err)
 	}
 
 	return resolution, nil
 }
 
-// findBestVersion finds the best version that satisfies the constraint
-func (r *DefaultResolver) findBestVersion(ctx context.Context, req *Requirement) (*berkshelf.Version, source.CookbookSource, error) {
-	var bestVersion *berkshelf.Version
-	var bestSource source.CookbookSource
+// fetchAllVersionsConcurrently fetches versions for all cookbooks in parallel using conc/pool
+func (r *DefaultResolver) fetchAllVersionsConcurrently(ctx context.Context, requirements []*Requirement) (map[string]map[source.CookbookSource][]*berkshelf.Version, error) {
+	versionMap := make(map[string]map[source.CookbookSource][]*berkshelf.Version)
+	var mu sync.Mutex
 
-	// If requirement specifies a specific source, create and use only that source
-	if req.Source != nil {
-		log.Debugf("Creating cookbook-specific source for %s: %s %s", req.Name, req.Source.Type, req.Source.URL)
-		factory := source.NewFactory()
-		specificSource, err := factory.CreateFromLocation(req.Source)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create specific source for %s: %w", req.Name, err)
+	// Create a result pool with context support
+	p := pool.New().WithContext(ctx).WithMaxGoroutines(r.workerCount)
+
+	// Submit jobs to the pool
+	for _, req := range requirements {
+		if req.Source != nil {
+			// Use specific source
+			factory := source.NewFactory()
+			specificSource, err := factory.CreateFromLocation(req.Source)
+			if err != nil {
+				log.Warnf("Failed to create specific source for %s: %v", req.Name, err)
+				continue
+			}
+			
+			// Capture variables for closure
+			reqName := req.Name
+			src := specificSource
+			
+			p.Go(func(ctx context.Context) error {
+				versions, err := r.getVersions(ctx, src, reqName)
+				if err != nil {
+					log.Debugf("Failed to fetch versions for %s from %s: %v", reqName, src.Name(), err)
+					return nil // Don't fail the entire operation for individual source failures
+				}
+
+				mu.Lock()
+				if versionMap[reqName] == nil {
+					versionMap[reqName] = make(map[source.CookbookSource][]*berkshelf.Version)
+				}
+				versionMap[reqName][src] = versions
+				mu.Unlock()
+				
+				return nil
+			})
+		} else {
+			// Use all global sources
+			for _, src := range r.sources {
+				// Capture variables for closure
+				reqName := req.Name
+				currentSrc := src
+				
+				p.Go(func(ctx context.Context) error {
+					versions, err := r.getVersions(ctx, currentSrc, reqName)
+					if err != nil {
+						log.Debugf("Failed to fetch versions for %s from %s: %v", reqName, currentSrc.Name(), err)
+						return nil // Don't fail the entire operation for individual source failures
+					}
+
+					mu.Lock()
+					if versionMap[reqName] == nil {
+						versionMap[reqName] = make(map[source.CookbookSource][]*berkshelf.Version)
+					}
+					versionMap[reqName][currentSrc] = versions
+					mu.Unlock()
+					
+					return nil
+				})
+			}
 		}
+	}
 
-		// Get available versions from the specific source
-		versions, err := r.getVersions(ctx, specificSource, req.Name)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get versions from specific source: %w", err)
+	// Wait for all jobs to complete
+	if err := p.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to fetch versions: %w", err)
+	}
+
+	return versionMap, nil
+}
+
+// resolveSequentially performs dependency resolution using pre-fetched version data
+func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements []*Requirement, versionMap map[string]map[source.CookbookSource][]*berkshelf.Version, resolution *Resolution) ([]*ResolvedCookbook, error) {
+	var resolvedCookbooks []*ResolvedCookbook
+	queue := make([]*Requirement, len(requirements))
+	copy(queue, requirements)
+	processed := make(map[string]bool)
+
+	for len(queue) > 0 {
+		req := queue[0]
+		queue = queue[1:]
+
+		if processed[req.Name] {
+			continue
 		}
+		processed[req.Name] = true
 
-		// Find the best version that satisfies the constraint
-		for _, v := range versions {
-			// Skip if doesn't satisfy constraint
-			if req.Constraint != nil && !req.Constraint.Check(v) {
+		// Find best version using pre-fetched data
+		version, cookbookSource, err := r.findBestVersionFromCache(req, versionMap)
+		if err != nil {
+			// Try to fetch versions for this cookbook if not in cache
+			// Use first available source as fallback
+			if len(r.sources) == 0 {
+				resolution.AddError(fmt.Errorf("failed to resolve %s: no sources available", req.Name))
 				continue
 			}
 
-			// Use the highest version that satisfies
-			if bestVersion == nil || v.GreaterThan(bestVersion) {
-				bestVersion = v
-				bestSource = specificSource
+			newVersions, fetchErr := r.getVersions(ctx, r.sources[0], req.Name)
+			if fetchErr != nil {
+				resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
+				continue
+			}
+
+			// Add to version map
+			if versionMap[req.Name] == nil {
+				versionMap[req.Name] = make(map[source.CookbookSource][]*berkshelf.Version)
+			}
+			versionMap[req.Name][r.sources[0]] = newVersions
+
+			// Try again
+			version, cookbookSource, err = r.findBestVersionFromCache(req, versionMap)
+			if err != nil {
+				resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
+				continue
 			}
 		}
 
-		if bestVersion == nil {
-			return nil, nil, fmt.Errorf("no version found in specific source that satisfies constraint %s", req.Constraint)
+		log.Infof("Using %s (%s) from %s", req.Name, version.String(), cookbookSource.Name())
+
+		// Fetch cookbook metadata to get dependencies
+		cookbook, err := r.fetchCookbook(ctx, req.Name, version, cookbookSource)
+		if err != nil {
+			resolution.AddError(fmt.Errorf("failed to fetch cookbook %s@%s: %w", req.Name, version.String(), err))
+			continue
 		}
 
-		return bestVersion, bestSource, nil
+		// Create resolved cookbook
+		resolved := &ResolvedCookbook{
+			Name:         req.Name,
+			Version:      version,
+			Source:       cookbookSource.GetSourceLocation(),
+			SourceRef:    cookbookSource,
+			Dependencies: make(map[string]*berkshelf.Version),
+			Cookbook:     cookbook,
+		}
+
+		resolvedCookbooks = append(resolvedCookbooks, resolved)
+
+		// Add to graph
+		node := resolution.Graph.AddCookbook(cookbook)
+		node.Resolved = true
+
+		// Add dependencies to queue
+		if cookbook.Metadata != nil && cookbook.Metadata.Dependencies != nil {
+			for depName, constraint := range cookbook.Metadata.Dependencies {
+				if !processed[depName] {
+					depReq := &Requirement{
+						Name:       depName,
+						Constraint: constraint,
+					}
+					queue = append(queue, depReq)
+					resolved.Dependencies[depName] = nil // Will be filled later
+				}
+			}
+		}
 	}
 
-	// Use global sources for cookbooks without specific sources
-	log.Debugf("Using global sources for %s", req.Name)
-	for _, src := range r.sources {
-		// Get available versions from this source
-		versions, err := r.getVersions(ctx, src, req.Name)
-		if err != nil {
-			continue // Try next source
-		}
+	return resolvedCookbooks, nil
+}
 
-		// Find the best version that satisfies the constraint
+// findBestVersionFromCache finds the best version using cached version data
+func (r *DefaultResolver) findBestVersionFromCache(req *Requirement, versionMap map[string]map[source.CookbookSource][]*berkshelf.Version) (*berkshelf.Version, source.CookbookSource, error) {
+	sourceVersions, exists := versionMap[req.Name]
+	if !exists {
+		return nil, nil, fmt.Errorf("no versions found for cookbook %s", req.Name)
+	}
+
+	var bestVersion *berkshelf.Version
+	var bestSource source.CookbookSource
+
+	for src, versions := range sourceVersions {
 		for _, v := range versions {
 			// Skip if doesn't satisfy constraint
 			if req.Constraint != nil && !req.Constraint.Check(v) {
@@ -252,6 +319,14 @@ func (r *DefaultResolver) fetchCookbook(ctx context.Context, name string, versio
 	return cookbook, nil
 }
 
+// SetMaxWorkers configures the number of concurrent workers for I/O operations
+func (r *DefaultResolver) SetMaxWorkers(workers int) {
+	if workers > 0 {
+		r.workerCount = workers
+		log.Debugf("Set resolver worker count to %d", workers)
+	}
+}
+
 // Cache methods
 
 // GetVersions retrieves versions from cache
@@ -264,6 +339,58 @@ func (c *ResolutionCache) GetVersions(key string) []*berkshelf.Version {
 		result := make([]*berkshelf.Version, len(versions))
 		copy(result, versions)
 		return result
+	}
+
+	return nil
+}
+
+// downloadCookbooksConcurrently downloads cookbook metadata in parallel using conc/pool
+func (r *DefaultResolver) downloadCookbooksConcurrently(ctx context.Context, resolvedCookbooks []*ResolvedCookbook, resolution *Resolution) error {
+	var mu sync.Mutex
+
+	// Create a result pool with context support
+	p := pool.New().WithContext(ctx).WithMaxGoroutines(r.workerCount)
+
+	// Submit jobs to the pool
+	for _, resolved := range resolvedCookbooks {
+		// Use the stored source reference
+		if resolved.SourceRef == nil {
+			log.Warnf("No source reference for %s@%s", resolved.Name, resolved.Version.String())
+			continue
+		}
+
+		// Capture variables for closure
+		name := resolved.Name
+		version := resolved.Version
+		sourceRef := resolved.SourceRef
+		
+		p.Go(func(ctx context.Context) error {
+			cookbook, err := r.fetchCookbook(ctx, name, version, sourceRef)
+			if err != nil {
+				mu.Lock()
+				resolution.AddError(fmt.Errorf("failed to fetch %s@%s: %w", name, version.String(), err))
+				mu.Unlock()
+				return nil // Don't fail the entire operation for individual cookbook failures
+			}
+
+			// Find the resolved cookbook and update it
+			mu.Lock()
+			for _, res := range resolvedCookbooks {
+				if res.Name == name && res.Version.Equal(version) {
+					res.Cookbook = cookbook
+					resolution.AddCookbook(res)
+					break
+				}
+			}
+			mu.Unlock()
+			
+			return nil
+		})
+	}
+
+	// Wait for all jobs to complete
+	if err := p.Wait(); err != nil {
+		return fmt.Errorf("failed to download cookbooks: %w", err)
 	}
 
 	return nil
