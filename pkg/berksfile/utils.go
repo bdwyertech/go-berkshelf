@@ -2,6 +2,8 @@ package berksfile
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/bdwyer/go-berkshelf/pkg/template"
 )
@@ -14,6 +16,26 @@ func ParseFile(filepath string) (*Berksfile, error) {
 	}
 
 	return ParseBerksfile(data)
+}
+
+// FindBerksfile searches for a Policyfile.rb in the given directory and parent directories
+func FindBerksfile(startDir string) (string, error) {
+	dir := startDir
+	for {
+		policyfilePath := filepath.Join(dir, "Berksfile")
+		if _, err := os.Stat(policyfilePath); err == nil {
+			return policyfilePath, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root directory
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("Berksfile not found in %s or any parent directory", startDir)
 }
 
 // FilterCookbooksByGroup filters cookbooks based on --only and --except flags
