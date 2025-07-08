@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
@@ -261,6 +262,81 @@ func TestCyclicDependencies(t *testing.T) {
 	if !resolution.HasErrors() {
 		t.Error("Expected resolution to have errors due to circular dependency")
 	}
+
+	// Verify that we have the expected cookbooks resolved despite the cycle
+	expectedCookbooks := []string{"a", "b", "c"}
+	for _, name := range expectedCookbooks {
+		if !resolution.HasCookbook(name) {
+			t.Errorf("Expected cookbook %s to be resolved", name)
+		}
+	}
+
+	// Verify error message contains cycle information
+	found := false
+	for _, err := range resolution.Errors {
+		if strings.Contains(err.Error(), "circular dependency") {
+			found = true
+			t.Logf("Found expected circular dependency error: %v", err)
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected to find circular dependency error in resolution errors")
+	}
+}
+
+func TestCyclicDependenciesComplex(t *testing.T) {
+	// Create mock source with a more complex circular dependency scenario
+	mockSrc := newMockSource("test", 100)
+
+	// Add cookbooks with multiple circular dependencies
+	// Cycle 1: web -> database -> web
+	mockSrc.addCookbook("web", "1.0.0", map[string]string{
+		"database": ">= 1.0.0",
+		"cache":    ">= 1.0.0", // Non-circular dependency
+	})
+	mockSrc.addCookbook("database", "1.0.0", map[string]string{
+		"web": ">= 1.0.0", // Creates cycle
+	})
+	mockSrc.addCookbook("cache", "1.0.0", map[string]string{
+		// No dependencies - breaks potential cycle
+	})
+
+	// Create resolver
+	resolver := NewResolver(createSources(mockSrc))
+
+	// Create requirements
+	constraint, _ := berkshelf.NewConstraint(">= 1.0.0")
+	requirements := []*Requirement{
+		NewRequirement("web", constraint),
+	}
+
+	// Resolve
+	ctx := context.Background()
+	resolution, err := resolver.Resolve(ctx, requirements)
+	if err != nil {
+		t.Fatalf("Resolution failed: %v", err)
+	}
+
+	// Should detect cycle
+	if !resolution.Graph.HasCycles() {
+		t.Error("Expected cycle detection to find circular dependency")
+	}
+
+	if !resolution.HasErrors() {
+		t.Error("Expected resolution to have errors due to circular dependency")
+	}
+
+	// Should still resolve all cookbooks
+	expectedCookbooks := []string{"web", "database", "cache"}
+	for _, name := range expectedCookbooks {
+		if !resolution.HasCookbook(name) {
+			t.Errorf("Expected cookbook %s to be resolved", name)
+		}
+	}
+
+	t.Logf("Resolution completed with %d cookbooks and %d errors", 
+		resolution.CookbookCount(), len(resolution.Errors))
 }
 
 func TestMultipleSources(t *testing.T) {

@@ -154,6 +154,8 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 	queue := make([]*Requirement, len(requirements))
 	copy(queue, requirements)
 	processed := make(map[string]bool)
+	resolving := make(map[string]bool) // Track cookbooks currently being resolved to detect cycles
+	dependencyChain := make([]string, 0) // Track current dependency chain for cycle detection
 
 	for len(queue) > 0 {
 		req := queue[0]
@@ -162,7 +164,18 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 		if processed[req.Name] {
 			continue
 		}
-		processed[req.Name] = true
+
+		// Check for circular dependency in current resolution chain
+		if resolving[req.Name] {
+			cycleError := fmt.Errorf("circular dependency detected involving cookbook '%s' in chain: %v -> %s", 
+				req.Name, dependencyChain, req.Name)
+			resolution.AddError(cycleError)
+			log.Warnf("Circular dependency detected: %s in chain %v", req.Name, dependencyChain)
+			continue
+		}
+
+		resolving[req.Name] = true
+		dependencyChain = append(dependencyChain, req.Name)
 
 		// Find best version using pre-fetched data
 		version, cookbookSource, err := r.findBestVersionFromCache(req, versionMap)
@@ -171,12 +184,16 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 			// Use first available source as fallback
 			if len(r.sources) == 0 {
 				resolution.AddError(fmt.Errorf("failed to resolve %s: no sources available", req.Name))
+				resolving[req.Name] = false
+				dependencyChain = dependencyChain[:len(dependencyChain)-1]
 				continue
 			}
 
 			newVersions, fetchErr := r.getVersions(ctx, r.sources[0], req.Name)
 			if fetchErr != nil {
 				resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
+				resolving[req.Name] = false
+				dependencyChain = dependencyChain[:len(dependencyChain)-1]
 				continue
 			}
 
@@ -190,6 +207,8 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 			version, cookbookSource, err = r.findBestVersionFromCache(req, versionMap)
 			if err != nil {
 				resolution.AddError(fmt.Errorf("failed to resolve %s: %w", req.Name, err))
+				resolving[req.Name] = false
+				dependencyChain = dependencyChain[:len(dependencyChain)-1]
 				continue
 			}
 		}
@@ -200,6 +219,8 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 		cookbook, err := r.fetchCookbook(ctx, req.Name, version, cookbookSource)
 		if err != nil {
 			resolution.AddError(fmt.Errorf("failed to fetch cookbook %s@%s: %w", req.Name, version.String(), err))
+			resolving[req.Name] = false
+			dependencyChain = dependencyChain[:len(dependencyChain)-1]
 			continue
 		}
 
@@ -219,9 +240,10 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 		node := resolution.Graph.AddCookbook(cookbook)
 		node.Resolved = true
 
-		// Add dependencies to queue
+		// Add dependencies to queue and build dependency graph
 		if cookbook.Metadata != nil && cookbook.Metadata.Dependencies != nil {
 			for depName, constraint := range cookbook.Metadata.Dependencies {
+				// Add dependency to queue if not processed
 				if !processed[depName] {
 					depReq := &Requirement{
 						Name:       depName,
@@ -230,7 +252,44 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 					queue = append(queue, depReq)
 					resolved.Dependencies[depName] = nil // Will be filled later
 				}
+				
+				// Create or get dependency node for graph building
+				var depNode *CookbookNode
+				if existingNode, exists := resolution.Graph.GetCookbook(depName); exists {
+					depNode = existingNode
+				} else {
+					// Create a placeholder cookbook for the dependency
+					placeholderCookbook := &berkshelf.Cookbook{
+						Name:    depName,
+						Version: nil, // Will be filled when resolved
+					}
+					depNode = resolution.Graph.AddCookbook(placeholderCookbook)
+				}
+				
+				// Add dependency edge to graph
+				resolution.Graph.AddDependency(node, depNode, constraint)
+				
+				// Check for cycles after adding each dependency
+				if resolution.Graph.HasCycles() {
+					cycleError := fmt.Errorf("circular dependency detected: %s depends on %s, creating a cycle", req.Name, depName)
+					resolution.AddError(cycleError)
+					log.Warnf("Circular dependency detected: %s -> %s creates cycle", req.Name, depName)
+				}
 			}
+		}
+
+		processed[req.Name] = true
+		resolving[req.Name] = false
+		dependencyChain = dependencyChain[:len(dependencyChain)-1]
+	}
+
+	// Final check for cycles in the complete graph
+	if resolution.Graph.HasCycles() {
+		if !resolution.HasErrors() {
+			// Only add this error if we haven't already detected cycles
+			cycleError := fmt.Errorf("circular dependencies detected in final cookbook dependency graph")
+			resolution.AddError(cycleError)
+			log.Warnf("Circular dependencies detected in final dependency graph")
 		}
 	}
 
