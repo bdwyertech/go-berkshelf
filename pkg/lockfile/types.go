@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // LockFile represents a Berksfile.lock file structure
@@ -57,7 +57,7 @@ func (lf *LockFile) AddCookbook(sourceURL string, cookbook *berkshelf.Cookbook, 
 			URL:  sourceURL,
 		}
 	}
-	
+
 	// Ensure source exists
 	if lf.Sources[sourceURL] == nil {
 		lf.Sources[sourceURL] = &SourceLock{

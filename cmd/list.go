@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -144,12 +143,6 @@ func runList(cmd *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("unsupported format: %s (supported: table, json)", listFormat)
 	}
-}
-
-func outputJSON(cookbooks []CookbookListItem) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(cookbooks)
 }
 
 func outputTable(cookbooks []CookbookListItem) error {

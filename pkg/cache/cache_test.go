@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 func TestCache_Basic(t *testing.T) {

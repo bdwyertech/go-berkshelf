@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/bdwyer/go-berkshelf/cmd"
+	"github.com/bdwyertech/go-berkshelf/cmd"
 )
 
 func main() {

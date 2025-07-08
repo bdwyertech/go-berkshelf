@@ -1,4 +1,4 @@
-module github.com/bdwyer/go-berkshelf
+module github.com/bdwyertech/go-berkshelf
 
 go 1.24.4
 

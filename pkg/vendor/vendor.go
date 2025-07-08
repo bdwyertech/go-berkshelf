@@ -8,9 +8,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // Options configures the vendor operation

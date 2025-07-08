@@ -5,8 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
-	"github.com/bdwyer/go-berkshelf/pkg/vendor"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/vendor"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

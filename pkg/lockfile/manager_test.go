@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/resolver"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/resolver"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 func TestNewManager(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/resolver"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/resolver"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 const (
@@ -91,12 +91,12 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 		// Handle nil source (use default)
 		var sourceInfo *SourceInfo
 		var sourceURL string
-		
+
 		if resolvedCookbook.Source != nil {
 			sourceInfo = createSourceInfoFromLocation(resolvedCookbook.Source)
 			sourceURL = resolvedCookbook.Source.URL
 		}
-		
+
 		// Use default source if URL is empty or source is nil
 		if sourceURL == "" {
 			sourceURL = source.PUBLIC_SUPERMARKET
@@ -265,14 +265,14 @@ func createSourceInfoFromLocation(loc *berkshelf.SourceLocation) *SourceInfo {
 			URL:  source.PUBLIC_SUPERMARKET,
 		}
 	}
-	
+
 	sourceInfo := &SourceInfo{
 		Type: loc.Type,
 		URL:  loc.URL,
 		Path: loc.Path,
 		Ref:  loc.Ref,
 	}
-	
+
 	if loc.Options != nil {
 		if branch, ok := loc.Options["branch"].(string); ok {
 			sourceInfo.Branch = branch
@@ -284,11 +284,11 @@ func createSourceInfoFromLocation(loc *berkshelf.SourceLocation) *SourceInfo {
 			sourceInfo.Ref = revision
 		}
 	}
-	
+
 	// Set default URL if empty
 	if sourceInfo.URL == "" {
 		sourceInfo.URL = source.PUBLIC_SUPERMARKET
 	}
-	
+
 	return sourceInfo
 }

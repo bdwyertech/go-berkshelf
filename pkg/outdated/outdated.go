@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // Cookbook represents an outdated cookbook

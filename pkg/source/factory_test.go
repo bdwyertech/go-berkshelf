@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 func TestFactory_CreateFromBerksfile(t *testing.T) {

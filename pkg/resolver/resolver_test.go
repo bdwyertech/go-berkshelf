@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // mockSource implements source.CookbookSource for testing
@@ -77,21 +77,21 @@ func (m *mockSource) addCookbook(name string, version string, dependencies map[s
 
 	// Create cookbook with proper metadata
 	cookbook := berkshelf.NewCookbook(name, v)
-	
+
 	// Create metadata
 	metadata := &berkshelf.Metadata{
 		Name:         name,
 		Version:      v,
 		Dependencies: make(map[string]*berkshelf.Constraint),
 	}
-	
+
 	// Add dependencies to both cookbook and metadata
 	for depName, depVer := range dependencies {
 		constraint, _ := berkshelf.NewConstraint(depVer)
 		cookbook.AddDependency(depName, constraint)
 		metadata.Dependencies[depName] = constraint
 	}
-	
+
 	// Set the metadata
 	cookbook.Metadata = metadata
 
@@ -335,7 +335,7 @@ func TestCyclicDependenciesComplex(t *testing.T) {
 		}
 	}
 
-	t.Logf("Resolution completed with %d cookbooks and %d errors", 
+	t.Logf("Resolution completed with %d cookbooks and %d errors",
 		resolution.CookbookCount(), len(resolution.Errors))
 }
 

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/errors"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/errors"
 )
 
 // Cache provides advanced caching capabilities

@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // CommonFlags holds flags that are used across multiple commands
@@ -73,4 +74,10 @@ func CheckLockFileStatus(manager *lockfile.Manager, force bool) (shouldProceed b
 	}
 
 	return true, nil
+}
+
+func outputJSON(cookbooks []CookbookListItem) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(cookbooks)
 }

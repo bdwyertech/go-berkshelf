@@ -7,9 +7,9 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"github.com/sourcegraph/conc/pool"
 
-	"github.com/bdwyer/go-berkshelf/internal/config"
-	"github.com/bdwyer/go-berkshelf/pkg/resolver"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/internal/config"
+	"github.com/bdwyertech/go-berkshelf/pkg/resolver"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // Installer handles cookbook caching during install operations
@@ -143,9 +143,11 @@ func (i *Installer) downloadAndCacheCookbook(ctx context.Context, cookbook *reso
 	}
 
 	// Cache the cookbook data
-	if err := i.cache.Put(key, data); err != nil {
-		return fmt.Errorf("failed to cache cookbook %s@%s: %w", cookbook.Name, cookbook.Version.String(), err)
-	}
+	// TODO: FetchCookbook does not return raw data -- we need to add another command to fetch the tarball or cookbook data
+	_ = data
+	// if err := i.cache.Put(key, data); err != nil {
+	// 	return fmt.Errorf("failed to cache cookbook %s@%s: %w", cookbook.Name, cookbook.Version.String(), err)
+	// }
 
 	return nil
 }

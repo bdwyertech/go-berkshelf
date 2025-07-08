@@ -7,11 +7,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/sourcegraph/conc/pool"
 	log "github.com/sirupsen/logrus"
+	"github.com/sourcegraph/conc/pool"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // DefaultResolver implements the Resolver interface
@@ -92,11 +92,11 @@ func (r *DefaultResolver) fetchAllVersionsConcurrently(ctx context.Context, requ
 				log.Warnf("Failed to create specific source for %s: %v", req.Name, err)
 				continue
 			}
-			
+
 			// Capture variables for closure
 			reqName := req.Name
 			src := specificSource
-			
+
 			p.Go(func(ctx context.Context) error {
 				versions, err := r.getVersions(ctx, src, reqName)
 				if err != nil {
@@ -110,7 +110,7 @@ func (r *DefaultResolver) fetchAllVersionsConcurrently(ctx context.Context, requ
 				}
 				versionMap[reqName][src] = versions
 				mu.Unlock()
-				
+
 				return nil
 			})
 		} else {
@@ -119,7 +119,7 @@ func (r *DefaultResolver) fetchAllVersionsConcurrently(ctx context.Context, requ
 				// Capture variables for closure
 				reqName := req.Name
 				currentSrc := src
-				
+
 				p.Go(func(ctx context.Context) error {
 					versions, err := r.getVersions(ctx, currentSrc, reqName)
 					if err != nil {
@@ -133,7 +133,7 @@ func (r *DefaultResolver) fetchAllVersionsConcurrently(ctx context.Context, requ
 					}
 					versionMap[reqName][currentSrc] = versions
 					mu.Unlock()
-					
+
 					return nil
 				})
 			}
@@ -154,7 +154,7 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 	queue := make([]*Requirement, len(requirements))
 	copy(queue, requirements)
 	processed := make(map[string]bool)
-	resolving := make(map[string]bool) // Track cookbooks currently being resolved to detect cycles
+	resolving := make(map[string]bool)   // Track cookbooks currently being resolved to detect cycles
 	dependencyChain := make([]string, 0) // Track current dependency chain for cycle detection
 
 	for len(queue) > 0 {
@@ -167,7 +167,7 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 
 		// Check for circular dependency in current resolution chain
 		if resolving[req.Name] {
-			cycleError := fmt.Errorf("circular dependency detected involving cookbook '%s' in chain: %v -> %s", 
+			cycleError := fmt.Errorf("circular dependency detected involving cookbook '%s' in chain: %v -> %s",
 				req.Name, dependencyChain, req.Name)
 			resolution.AddError(cycleError)
 			log.Warnf("Circular dependency detected: %s in chain %v", req.Name, dependencyChain)
@@ -252,7 +252,7 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 					queue = append(queue, depReq)
 					resolved.Dependencies[depName] = nil // Will be filled later
 				}
-				
+
 				// Create or get dependency node for graph building
 				var depNode *CookbookNode
 				if existingNode, exists := resolution.Graph.GetCookbook(depName); exists {
@@ -265,10 +265,10 @@ func (r *DefaultResolver) resolveSequentially(ctx context.Context, requirements 
 					}
 					depNode = resolution.Graph.AddCookbook(placeholderCookbook)
 				}
-				
+
 				// Add dependency edge to graph
 				resolution.Graph.AddDependency(node, depNode, constraint)
-				
+
 				// Check for cycles after adding each dependency
 				if resolution.Graph.HasCycles() {
 					cycleError := fmt.Errorf("circular dependency detected: %s depends on %s, creating a cycle", req.Name, depName)
@@ -422,7 +422,7 @@ func (r *DefaultResolver) downloadCookbooksConcurrently(ctx context.Context, res
 		name := resolved.Name
 		version := resolved.Version
 		sourceRef := resolved.SourceRef
-		
+
 		p.Go(func(ctx context.Context) error {
 			cookbook, err := r.fetchCookbook(ctx, name, version, sourceRef)
 			if err != nil {
@@ -442,7 +442,7 @@ func (r *DefaultResolver) downloadCookbooksConcurrently(ctx context.Context, res
 				}
 			}
 			mu.Unlock()
-			
+
 			return nil
 		})
 	}

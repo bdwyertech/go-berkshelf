@@ -8,10 +8,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
-	"github.com/bdwyer/go-berkshelf/pkg/outdated"
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/outdated"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/tw"

@@ -125,7 +125,7 @@ import (
     "fmt"
     "log"
     
-    "github.com/bdwyer/go-berkshelf/pkg/policyfile"
+    "github.com/bdwyertech/go-berkshelf/pkg/policyfile"
 )
 
 func main() {
