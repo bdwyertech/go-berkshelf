@@ -3,7 +3,7 @@ package vendor
 import (
 	"maps"
 
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
 )
 
 // FindTransitiveDependencies finds all transitive dependencies for given cookbooks

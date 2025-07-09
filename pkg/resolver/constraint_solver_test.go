@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 func (m *mockSource) GetSourceLocation() *berkshelf.SourceLocation {

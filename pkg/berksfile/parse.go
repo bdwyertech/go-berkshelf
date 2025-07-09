@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // ParseBerksfile parses the input Berksfile DSL and returns a Berksfile struct or error.

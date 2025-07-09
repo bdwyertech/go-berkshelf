@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 func TestSupermarketSource_ListVersions(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 	"github.com/go-chef/chef"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // Global variable to store parse errors

@@ -3,7 +3,7 @@ package resolver
 import (
 	"fmt"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 )

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bdwyer/go-berkshelf/pkg/template"
+	"github.com/bdwyertech/go-berkshelf/pkg/template"
 )
 
 // ParseFile parses a Berksfile from a file path

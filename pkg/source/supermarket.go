@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // SupermarketSource implements CookbookSource for Chef Supermarket API.

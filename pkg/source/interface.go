@@ -4,7 +4,7 @@ package source
 import (
 	"context"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // CookbookSource defines the interface for fetching cookbooks from various sources.

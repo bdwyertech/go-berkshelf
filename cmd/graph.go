@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
 	"github.com/spf13/cobra"
 )
 

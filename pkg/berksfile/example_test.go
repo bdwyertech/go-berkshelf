@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
 )
 
 func Example_parseBerksfile() {

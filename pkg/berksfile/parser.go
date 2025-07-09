@@ -11,7 +11,7 @@ import __yyfmt__ "fmt"
 import (
 	"strings"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // CookbookDef represents a cookbook definition in a Berksfile

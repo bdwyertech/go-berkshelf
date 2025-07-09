@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/bdwyer/go-berkshelf/internal/version"
+	"github.com/bdwyertech/go-berkshelf/internal/version"
 
 	"github.com/spf13/cobra"
 )

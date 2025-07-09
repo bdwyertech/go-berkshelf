@@ -10,7 +10,7 @@ import (
 
 	"dario.cat/mergo"
 
-	"github.com/bdwyer/go-berkshelf/pkg/source"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 )
 
 // Config represents berkshelf configuration with pointer fields for optional values

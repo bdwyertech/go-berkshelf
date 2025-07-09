@@ -3,7 +3,7 @@ package berksfile_test
 import (
 	"testing"
 
-	"github.com/bdwyer/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
 )
 
 // func TestTokens(t *testing.T) {

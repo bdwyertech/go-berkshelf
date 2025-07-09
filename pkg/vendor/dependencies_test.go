@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bdwyer/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
 )
 
 func TestFindTransitiveDependencies(t *testing.T) {
