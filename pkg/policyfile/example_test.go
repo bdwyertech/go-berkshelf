@@ -91,7 +91,7 @@ cookbook "artifactory-cookbook", artifactory: "https://artifactory.example/api/c
 	//   Cookbook 9: artifactory-cookbook [supermarket: https://artifactory.example/api/chef/my-supermarket +opts]
 }
 
-func ExampleLoadPolicyfile() {
+func ExampleLoad() {
 	// This example shows how to load a Policyfile.rb from disk
 	// Note: This would require an actual file to exist
 

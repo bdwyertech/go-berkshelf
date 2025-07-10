@@ -7,7 +7,7 @@ import (
 	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
 )
 
-func Example_Parse() {
+func ExampleParse() {
 	// Example Berksfile content
 	content := `
 source 'https://supermarket.chef.io'
