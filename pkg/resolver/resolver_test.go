@@ -375,7 +375,7 @@ func TestMultipleSources(t *testing.T) {
 
 func TestCacheEffectiveness(t *testing.T) {
 	// Create mock source that tracks calls
-	mockSrc := newMockSource("test", 100)
+	mockSrc := newMockSource("test", 100) //lint:ignore SA4006 this value of mockSrc is never used
 
 	// Track fetch count differently since we can't override methods on non-pointer receivers
 	// For now, we'll skip this test as it requires a different approach

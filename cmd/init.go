@@ -23,7 +23,7 @@ This creates a basic Berksfile with common configuration.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check if Berksfile already exists
 		if _, err := os.Stat(berksfilePath); err == nil {
-			return fmt.Errorf("Berksfile already exists at %s", berksfilePath)
+			return fmt.Errorf("Berksfile already exists at %s", berksfilePath) //lint:ignore ST1005 error strings should not be capitalized
 		}
 
 		// Create a basic Berksfile

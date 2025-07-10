@@ -36,7 +36,7 @@ func Find(startDir string) (string, error) {
 		dir = parent
 	}
 
-	return "", fmt.Errorf("Policyfile.rb not found in %s or any parent directory", startDir)
+	return "", fmt.Errorf("Policyfile.rb not found in %s or any parent directory", startDir) //lint:ignore ST1005 error strings should not be capitalized
 }
 
 // ToBerksfileEquivalent converts a Policyfile to a structure that can be used

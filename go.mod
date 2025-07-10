@@ -1,6 +1,6 @@
 module github.com/bdwyertech/go-berkshelf
 
-go 1.24.4
+go 1.24
 
 require (
 	dario.cat/mergo v1.0.2

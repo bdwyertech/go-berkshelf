@@ -529,7 +529,7 @@ func (c *Config) Validate() error {
 func (c *Config) GetCachePathResolved() string {
 	cachePath := c.GetCachePath()
 	// Expand ~ to home directory if needed
-	if filepath.HasPrefix(cachePath, "~/") {
+	if strings.HasPrefix(cachePath, "~/") {
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, cachePath[2:])
 	}
