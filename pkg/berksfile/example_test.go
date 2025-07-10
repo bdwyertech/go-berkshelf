@@ -7,7 +7,7 @@ import (
 	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
 )
 
-func Example_parseBerksfile() {
+func Example_Parse() {
 	// Example Berksfile content
 	content := `
 source 'https://supermarket.chef.io'
@@ -33,7 +33,7 @@ end
 `
 
 	// Parse the Berksfile
-	berks, err := berksfile.ParseBerksfile(content)
+	berks, err := berksfile.Parse(content)
 	if err != nil {
 		log.Fatal(err)
 	}

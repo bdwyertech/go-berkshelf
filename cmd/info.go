@@ -46,7 +46,7 @@ Examples:
 		var sourceManager *source.Manager
 
 		if _, err := os.Stat("Berksfile"); err == nil {
-			bf, err := berksfile.ParseFile("Berksfile")
+			bf, err := berksfile.Load("Berksfile")
 			if err == nil {
 				factory := source.NewFactory()
 				sourceManager, err = factory.CreateFromBerksfile(bf)

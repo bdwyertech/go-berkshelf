@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyertech/go-berkshelf/pkg/resolver"
 	"github.com/bdwyertech/go-berkshelf/pkg/source"
@@ -13,30 +14,41 @@ import (
 const (
 	// DefaultLockFileName is the default name for lock files
 	DefaultLockFileName = "Berksfile.go.lock"
+	// RubyLockFileName is the Ruby Berkshelf compatible lock file name
+	RubyLockFileName = "Berksfile.lock"
 )
 
-// Manager handles lock file operations
+// Manager handles lock file operations for both JSON and Ruby formats
 type Manager struct {
-	lockFilePath string
+	lockFilePath     string
+	rubyLockFilePath string
 }
 
 // NewManager creates a new lock file manager
 func NewManager(workDir string) *Manager {
 	return &Manager{
-		lockFilePath: filepath.Join(workDir, DefaultLockFileName),
+		lockFilePath:     filepath.Join(workDir, DefaultLockFileName),
+		rubyLockFilePath: filepath.Join(workDir, RubyLockFileName),
 	}
 }
 
 // NewManagerWithPath creates a new lock file manager with custom path
 func NewManagerWithPath(lockFilePath string) *Manager {
 	return &Manager{
-		lockFilePath: lockFilePath,
+		lockFilePath:     lockFilePath,
+		rubyLockFilePath: filepath.Join(filepath.Dir(lockFilePath), RubyLockFileName),
 	}
 }
 
 // Exists checks if the lock file exists
 func (m *Manager) Exists() bool {
 	_, err := os.Stat(m.lockFilePath)
+	return err == nil
+}
+
+// RubyExists checks if the Ruby lock file exists
+func (m *Manager) RubyExists() bool {
+	_, err := os.Stat(m.rubyLockFilePath)
 	return err == nil
 }
 
@@ -58,7 +70,7 @@ func (m *Manager) Load() (*LockFile, error) {
 	return lockFile, nil
 }
 
-// Save writes the lock file to disk
+// Save writes the lock file to disk in JSON format
 func (m *Manager) Save(lockFile *LockFile) error {
 	// Update generation time
 	lockFile.UpdateGeneratedAt()
@@ -77,6 +89,45 @@ func (m *Manager) Save(lockFile *LockFile) error {
 	// Write with proper permissions
 	if err := os.WriteFile(m.lockFilePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write lock file %s: %w", m.lockFilePath, err)
+	}
+
+	return nil
+}
+
+// SaveRuby writes the lock file in Ruby format to disk
+func (m *Manager) SaveRuby(lockFile *LockFile, dependencies []string) error {
+	// Update generation time
+	lockFile.UpdateGeneratedAt()
+
+	data, err := lockFile.ToRubyFormat(dependencies)
+	if err != nil {
+		return fmt.Errorf("failed to serialize lock file to Ruby format: %w", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(m.rubyLockFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create lock file directory: %w", err)
+	}
+
+	// Write with proper permissions
+	if err := os.WriteFile(m.rubyLockFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write Ruby lock file %s: %w", m.rubyLockFilePath, err)
+	}
+
+	return nil
+}
+
+// SaveBoth writes both JSON and Ruby format lock files
+func (m *Manager) SaveBoth(lockFile *LockFile, dependencies []string) error {
+	// Save JSON format
+	if err := m.Save(lockFile); err != nil {
+		return err
+	}
+
+	// Save Ruby format
+	if err := m.SaveRuby(lockFile, dependencies); err != nil {
+		return err
 	}
 
 	return nil
@@ -109,6 +160,16 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 	return lockFile, nil
 }
 
+// GenerateBoth creates and saves both JSON and Ruby format lock files
+func (m *Manager) GenerateBoth(resolution *resolver.Resolution, dependencies []string) error {
+	lockFile, err := m.Generate(resolution)
+	if err != nil {
+		return err
+	}
+
+	return m.SaveBoth(lockFile, dependencies)
+}
+
 // Update updates an existing lock file with new resolution data
 func (m *Manager) Update(resolution *resolver.Resolution) error {
 	// Load existing lock file or create new one
@@ -129,6 +190,27 @@ func (m *Manager) Update(resolution *resolver.Resolution) error {
 
 	// Save updated lock file
 	return m.Save(existingLock)
+}
+
+// UpdateBoth updates both JSON and Ruby format lock files
+func (m *Manager) UpdateBoth(resolution *resolver.Resolution, dependencies []string) error {
+	// Load existing lock file or create new one
+	existingLock, err := m.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load existing lock file: %w", err)
+	}
+
+	// Generate new lock file from resolution
+	newLock, err := m.Generate(resolution)
+	if err != nil {
+		return fmt.Errorf("failed to generate new lock file: %w", err)
+	}
+
+	// Merge lock files (for now, replace completely)
+	*existingLock = *newLock
+
+	// Save both formats
+	return m.SaveBoth(existingLock, dependencies)
 }
 
 // IsOutdated checks if the lock file needs updating
@@ -198,12 +280,17 @@ func (m *Manager) Validate() error {
 	return nil
 }
 
-// GetPath returns the lock file path
+// GetPath returns the JSON lock file path
 func (m *Manager) GetPath() string {
 	return m.lockFilePath
 }
 
-// Remove deletes the lock file
+// GetRubyPath returns the Ruby lock file path
+func (m *Manager) GetRubyPath() string {
+	return m.rubyLockFilePath
+}
+
+// Remove deletes the JSON lock file
 func (m *Manager) Remove() error {
 	if !m.Exists() {
 		return nil // Already doesn't exist
@@ -215,6 +302,28 @@ func (m *Manager) Remove() error {
 	}
 
 	return nil
+}
+
+// RemoveRuby deletes the Ruby lock file
+func (m *Manager) RemoveRuby() error {
+	if !m.RubyExists() {
+		return nil // Already doesn't exist
+	}
+
+	err := os.Remove(m.rubyLockFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove Ruby lock file %s: %w", m.rubyLockFilePath, err)
+	}
+
+	return nil
+}
+
+// RemoveBoth deletes both lock files
+func (m *Manager) RemoveBoth() error {
+	if err := m.Remove(); err != nil {
+		return err
+	}
+	return m.RemoveRuby()
 }
 
 // Backup creates a backup of the lock file
@@ -291,4 +400,38 @@ func createSourceInfoFromLocation(loc *berkshelf.SourceLocation) *SourceInfo {
 	}
 
 	return sourceInfo
+}
+
+// ExtractDirectDependencies extracts the direct dependencies from a Berksfile
+func ExtractDirectDependencies(berksfilePath string, groups []string) ([]string, error) {
+	// Parse the Berksfile
+	parsedBerksfile, err := berksfile.Load(berksfilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Berksfile: %w", err)
+	}
+
+	// Get cookbooks, optionally filtered by groups
+	var cookbooks []*berksfile.CookbookDef
+	if len(groups) > 0 {
+		cookbooks = parsedBerksfile.GetCookbooks(groups...)
+	} else {
+		cookbooks = parsedBerksfile.GetCookbooks()
+	}
+
+	// Extract cookbook names
+	var dependencies []string
+	for _, cookbook := range cookbooks {
+		dependencies = append(dependencies, cookbook.Name)
+	}
+
+	// Sort dependencies for consistent output
+	for i := 0; i < len(dependencies); i++ {
+		for j := i + 1; j < len(dependencies); j++ {
+			if dependencies[i] > dependencies[j] {
+				dependencies[i], dependencies[j] = dependencies[j], dependencies[i]
+			}
+		}
+	}
+
+	return dependencies, nil
 }

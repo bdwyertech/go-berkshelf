@@ -136,7 +136,7 @@ func main() {
     cookbook "windows-security-policy", chef_server: "https://chef.example.com/", client_name: "myuser", client_key: "~/.chef/myuser.pem"
     `
     
-    policyfile, err := policyfile.ParsePolicyfile(input)
+    policyfile, err := policyfile.Parse(input)
     if err != nil {
         log.Fatal(err)
     }

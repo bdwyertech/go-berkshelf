@@ -8,7 +8,7 @@ import (
 
 // func TestTokens(t *testing.T) {
 // 	src := `source chef_server: "https://chef.myorg.net/", client_name: "bd"`
-// 	berksfile, err := berksfile.ParseBerksfile(src)
+// 	berksfile, err := berksfile.Parse(src)
 // 	if err != nil {
 // 		t.Fatalf("ParseBerksfile failed: %v", err)
 // 	}
@@ -42,7 +42,7 @@ import (
 // cookbook 'nginx', "~> 1.2"
 // cookbook 'windows-security-policy', git: 'https://github.com/bdwyertech/windows-security-policy.git', branch: 'chef-16'
 // `
-// 	berksfile, err := berksfile.ParseBerksfile(input)
+// 	berksfile, err := berksfile.Parse(input)
 // 	if err != nil {
 // 		t.Fatalf("ParseBerksfile failed: %v", err)
 // 	}
@@ -61,7 +61,7 @@ import (
 
 func TestParseBerksfile_Empty(t *testing.T) {
 	input := ``
-	berksfile, err := berksfile.ParseBerksfile(input)
+	berksfile, err := berksfile.Parse(input)
 	if err != nil {
 		t.Fatalf("Expected success for empty input, got error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestParseBerksfile_Empty(t *testing.T) {
 
 func TestParseBerksfile_InvalidSyntax(t *testing.T) {
 	input := `cookbook "nginx" "1.2" { invalid_syntax }`
-	_, err := berksfile.ParseBerksfile(input)
+	_, err := berksfile.Parse(input)
 	if err == nil {
 		t.Fatalf("Expected error for invalid syntax, got nil")
 	}
@@ -87,7 +87,7 @@ func TestParseBerksfile_GroupEdgeCases(t *testing.T) {
 group :web do
 end
 `
-	berksfile, err := berksfile.ParseBerksfile(input)
+	berksfile, err := berksfile.Parse(input)
 	if err != nil {
 		t.Fatalf("ParseBerksfile failed: %v", err)
 	}
@@ -111,7 +111,7 @@ cookbook "nginx"
 # Another comment
 cookbook "redis"
 `
-	berksfile, err := berksfile.ParseBerksfile(input)
+	berksfile, err := berksfile.Parse(input)
 	if err != nil {
 		t.Fatalf("ParseBerksfile failed: %v", err)
 	}

@@ -163,18 +163,29 @@ Examples:
 
 		log.Infof("Resolved %d cookbook(s)", len(resolution.Cookbooks))
 
-		// Update lock file
+		// Update lock files
 		lockManager := lockfile.NewManager(".")
-		lockFile, err := lockManager.Generate(resolution)
+		
+		// Extract direct dependencies from Berksfile for DEPENDENCIES section
+		berksfilePath := "Berksfile"
+		var groups []string
+		if len(updateOnly) > 0 {
+			groups = updateOnly
+		}
+		
+		dependencies, err := lockfile.ExtractDirectDependencies(berksfilePath, groups)
 		if err != nil {
-			return fmt.Errorf("failed to generate lock file: %w", err)
+			log.Warnf("Failed to extract direct dependencies for Ruby lock file: %v", err)
+			// Continue with empty dependencies list
+			dependencies = []string{}
+		}
+		
+		// Generate and save both formats
+		if err := lockManager.GenerateBoth(resolution, dependencies); err != nil {
+			return fmt.Errorf("failed to generate lock files: %w", err)
 		}
 
-		if err := lockManager.Save(lockFile); err != nil {
-			return fmt.Errorf("failed to save lock file: %w", err)
-		}
-
-		log.Infof("Lock file updated: %s", lockManager.GetPath())
+		log.Infof("Lock files updated: %s and %s", lockManager.GetPath(), lockManager.GetRubyPath())
 
 		// Show what was updated
 		log.Info("\nUpdated cookbooks:")

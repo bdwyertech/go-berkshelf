@@ -6,20 +6,21 @@ import (
 	"path/filepath"
 
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/template"
 )
 
-// LoadPolicyfile loads and parses a Policyfile.rb from the given path
-func LoadPolicyfile(path string) (*Policyfile, error) {
-	content, err := os.ReadFile(path)
+// Load loads and parses a Policyfile.rb from the given path
+func Load(filepath string) (*Policyfile, error) {
+	data, err := template.Render(filepath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read Policyfile.rb: %w", err)
+		return nil, fmt.Errorf("failed to read Berksfile: %w", err)
 	}
 
-	return ParsePolicyfile(string(content))
+	return Parse(data)
 }
 
-// FindPolicyfile searches for a Policyfile.rb in the given directory and parent directories
-func FindPolicyfile(startDir string) (string, error) {
+// Find searches for a Policyfile.rb in the given directory and parent directories
+func Find(startDir string) (string, error) {
 	dir := startDir
 	for {
 		policyfilePath := filepath.Join(dir, "Policyfile.rb")

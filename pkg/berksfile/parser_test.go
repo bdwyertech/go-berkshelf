@@ -164,7 +164,7 @@ func TestParser_BasicBerksfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			berksfile, err := ParseBerksfile(tt.input)
+			berksfile, err := Parse(tt.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -189,7 +189,7 @@ group :development, :test do
 end
 `
 
-	berksfile, err := ParseBerksfile(input)
+	berksfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -265,7 +265,7 @@ group :development do
 end
 `
 
-	berksfile, err := ParseBerksfile(input)
+	berksfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestParser_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseBerksfile(tt.input)
+			_, err := Parse(tt.input)
 			if tt.shouldError && err == nil {
 				t.Error("expected error but got none")
 			}

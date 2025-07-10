@@ -440,7 +440,7 @@ func TestLexer_ErrorHandling(t *testing.T) {
 			// Clear any previous errors
 			ClearLastError()
 
-			_, err := ParseBerksfile(tt.input)
+			_, err := Parse(tt.input)
 
 			if tt.shouldError && err == nil {
 				t.Error("expected error but got none")

@@ -3,16 +3,16 @@ package policyfile
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
 // Global variable to store parse errors
 var lastParseError error
 
-// ParsePolicyfile parses the input Policyfile.rb DSL and returns a Policyfile struct or error.
+// Parse parses the input Policyfile.rb DSL and returns a Policyfile struct or error.
 // Only parses Berkshelf-equivalent directives: default_source and cookbook
-func ParsePolicyfile(input string) (*Policyfile, error) {
+func Parse(input string) (*Policyfile, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		// Return empty but valid Policyfile for empty input

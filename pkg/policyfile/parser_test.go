@@ -6,7 +6,7 @@ import (
 
 func TestParsePolicyfile_Empty(t *testing.T) {
 	input := ""
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestParsePolicyfile_Empty(t *testing.T) {
 
 func TestParsePolicyfile_DefaultSourceSupermarket(t *testing.T) {
 	input := "default_source :supermarket"
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestParsePolicyfile_DefaultSourceSupermarket(t *testing.T) {
 
 func TestParsePolicyfile_DefaultSourceWithURI(t *testing.T) {
 	input := `default_source :supermarket, "https://private.supermarket.com"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestParsePolicyfile_DefaultSourceWithURI(t *testing.T) {
 
 func TestParsePolicyfile_ChefServer(t *testing.T) {
 	input := `default_source :chef_server, "https://chef.example.com/organizations/myorg"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestParsePolicyfile_ChefServer(t *testing.T) {
 
 func TestParsePolicyfile_ChefRepo(t *testing.T) {
 	input := `default_source :chef_repo, "/path/to/cookbooks"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestParsePolicyfile_ChefRepo(t *testing.T) {
 
 func TestParsePolicyfile_Cookbook(t *testing.T) {
 	input := `cookbook "nginx"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestParsePolicyfile_Cookbook(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithVersion(t *testing.T) {
 	input := `cookbook "nginx", "~> 2.7"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -158,7 +158,7 @@ default_source :chef_repo, "/path/to/cookbooks"
 cookbook "nginx", "~> 2.7"
 cookbook "mysql"
 `
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -202,7 +202,7 @@ default_source :supermarket  # Another comment
 cookbook "nginx", "~> 2.7"  # Version constraint
 cookbook "mysql"            # No version
 `
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

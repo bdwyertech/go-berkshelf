@@ -47,7 +47,7 @@ Examples:
 		}
 
 		// Parse Berksfile
-		bf, err := berksfile.ParseFile("Berksfile")
+		bf, err := berksfile.Load("Berksfile")
 		if err != nil {
 			return fmt.Errorf("failed to parse Berksfile: %w", err)
 		}

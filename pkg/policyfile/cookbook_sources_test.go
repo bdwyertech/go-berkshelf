@@ -6,7 +6,7 @@ import (
 
 func TestParsePolicyfile_CookbookWithPath(t *testing.T) {
 	input := `cookbook "my_app", path: "cookbooks/my_app"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestParsePolicyfile_CookbookWithPath(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithGit(t *testing.T) {
 	input := `cookbook "chef-ingredient", git: "https://github.com/chef-cookbooks/chef-ingredient.git", tag: "v0.12.0"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestParsePolicyfile_CookbookWithGit(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithGitBranch(t *testing.T) {
 	input := `cookbook "mysql", git: "https://github.com/opscode-cookbooks/mysql.git", branch: "master"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestParsePolicyfile_CookbookWithGitBranch(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithGithub(t *testing.T) {
 	input := `cookbook "mysql", github: "opscode-cookbooks/mysql", branch: "master"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestParsePolicyfile_CookbookWithGithub(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithVersionAndSource(t *testing.T) {
 	input := `cookbook "jenkins", "~> 2.1", git: "https://github.com/chef-cookbooks/jenkins.git"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -179,7 +179,7 @@ cookbook "my_app", path: "cookbooks/my_app"
 cookbook "mysql", github: "opscode-cookbooks/mysql", branch: "master"
 cookbook "chef-ingredient", git: "https://github.com/chef-cookbooks/chef-ingredient.git", tag: "v0.12.0"
 `
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -236,7 +236,7 @@ cookbook "chef-ingredient", git: "https://github.com/chef-cookbooks/chef-ingredi
 }
 func TestParsePolicyfile_CookbookWithChefServer(t *testing.T) {
 	input := `cookbook "windows-security-policy", chef_server: "https://chef.my.org/", client_name: "myself", client_key: "~/.chef/key.pem"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestParsePolicyfile_CookbookWithChefServer(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithSupermarket(t *testing.T) {
 	input := `cookbook "nginx", supermarket: "https://private.supermarket.com", api_key: "my-api-key"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestParsePolicyfile_CookbookWithSupermarket(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithArtifactory(t *testing.T) {
 	input := `cookbook "mysql", artifactory: "https://artifactory.example/api/chef/my-supermarket", artifactory_api_key: "my-artifactory-key"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestParsePolicyfile_CookbookWithArtifactory(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithArtifactoryIdentityToken(t *testing.T) {
 	input := `cookbook "apache2", artifactory: "https://artifactory.example/api/chef/my-supermarket", artifactory_identity_token: "my-identity-token"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -376,7 +376,7 @@ func TestParsePolicyfile_CookbookWithArtifactoryIdentityToken(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithChefServerMultipleOptions(t *testing.T) {
 	input := `cookbook "test-cookbook", chef_server: "https://chef.example.com/organizations/test", client_name: "testuser", client_key: "~/.chef/testuser.pem", node_name: "test-node"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestParsePolicyfile_CookbookWithChefServerMultipleOptions(t *testing.T) {
 
 func TestParsePolicyfile_CookbookWithVersionAndChefServer(t *testing.T) {
 	input := `cookbook "windows-security-policy", "~> 1.0", chef_server: "https://chef.my.org/", client_name: "myself"`
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -456,7 +456,7 @@ cookbook "windows-security-policy", chef_server: "https://chef.my.org/", client_
 cookbook "private-cookbook", supermarket: "https://private.supermarket.com", api_key: "my-api-key"
 cookbook "artifactory-cookbook", artifactory: "https://artifactory.example/api/chef/my-supermarket", artifactory_api_key: "my-artifactory-key"
 `
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

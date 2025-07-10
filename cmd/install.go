@@ -92,16 +92,33 @@ Examples:
 
 		log.Infof("Resolved %d cookbooks", resolution.CookbookCount())
 
-		// 6. Generate/update lock file
+		// 6. Generate/update lock files
 		log.Info("Updating Berksfile.lock...")
-		if err := lockManager.Update(resolution); err != nil {
-			return fmt.Errorf("failed to update lock file: %w", err)
+		
+		// Extract direct dependencies from Berksfile for DEPENDENCIES section
+		berksfilePath := "Berksfile"
+		var groups []string
+		if len(only) > 0 {
+			groups = only
+		}
+		
+		dependencies, err := lockfile.ExtractDirectDependencies(berksfilePath, groups)
+		if err != nil {
+			log.Warnf("Failed to extract direct dependencies for Ruby lock file: %v", err)
+			// Continue with empty dependencies list
+			dependencies = []string{}
+		}
+		
+		// Update both JSON and Ruby lock files
+		if err := lockManager.UpdateBoth(resolution, dependencies); err != nil {
+			return fmt.Errorf("failed to update lock files: %w", err)
 		}
 
 		log.Info("")
 		log.Info("Installation complete!")
 		log.Infof("Resolved %d cookbooks", resolution.CookbookCount())
 		log.Infof("Updated %s", lockManager.GetPath())
+		log.Infof("Generated %s", lockManager.GetRubyPath())
 
 		return nil
 	},

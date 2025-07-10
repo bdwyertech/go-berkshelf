@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func ExampleParsePolicyfile() {
+func ExampleParse() {
 	input := `
 # Example Policyfile.rb with all supported Berkshelf-equivalent directives
 default_source :supermarket
@@ -33,7 +33,7 @@ cookbook "private-cookbook", supermarket: "https://private.supermarket.com", api
 cookbook "artifactory-cookbook", artifactory: "https://artifactory.example/api/chef/my-supermarket", artifactory_api_key: "my-artifactory-key"
 `
 
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,7 +114,7 @@ cookbook "nginx", "~> 2.7"
 cookbook "my_app", path: "cookbooks/my_app"
 `
 
-	policyfile, err := ParsePolicyfile(input)
+	policyfile, err := Parse(input)
 	if err != nil {
 		log.Fatal(err)
 	}

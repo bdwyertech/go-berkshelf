@@ -27,7 +27,7 @@ func LoadBerksfile() (*berksfile.Berksfile, error) {
 	}
 
 	// Parse Berksfile
-	bf, err := berksfile.ParseFile(berksfilePath)
+	bf, err := berksfile.Load(berksfilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Berksfile: %w", err)
 	}

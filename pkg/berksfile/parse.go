@@ -3,12 +3,12 @@ package berksfile
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
 
-// ParseBerksfile parses the input Berksfile DSL and returns a Berksfile struct or error.
-func ParseBerksfile(input string) (*Berksfile, error) {
+// Parse parses the input Berksfile DSL and returns a Berksfile struct or error.
+func Parse(input string) (*Berksfile, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		// Return empty but valid Berksfile for empty input

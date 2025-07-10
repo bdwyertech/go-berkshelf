@@ -3,6 +3,7 @@ package lockfile
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"time"
 
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
@@ -101,9 +102,7 @@ func (lf *LockFile) HasCookbook(name string) bool {
 func (lf *LockFile) ListCookbooks() map[string]*CookbookLock {
 	cookbooks := make(map[string]*CookbookLock)
 	for _, source := range lf.Sources {
-		for name, cookbook := range source.Cookbooks {
-			cookbooks[name] = cookbook
-		}
+		maps.Copy(cookbooks, source.Cookbooks)
 	}
 	return cookbooks
 }
@@ -117,6 +116,75 @@ func (lf *LockFile) ToJSON() ([]byte, error) {
 
 	if err := encoder.Encode(lf); err != nil {
 		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// ToRubyFormat serializes the lock file to Ruby Berkshelf format
+func (lf *LockFile) ToRubyFormat(dependencies []string) ([]byte, error) {
+	var buffer bytes.Buffer
+
+	// Write DEPENDENCIES section
+	buffer.WriteString("DEPENDENCIES\n")
+	for _, dep := range dependencies {
+		buffer.WriteString("  " + dep + "\n")
+	}
+	buffer.WriteString("\n")
+
+	// Write GRAPH section
+	buffer.WriteString("GRAPH\n")
+
+	// Collect all cookbooks and sort them alphabetically
+	allCookbooks := make(map[string]*CookbookLock)
+	for _, source := range lf.Sources {
+		for name, cookbook := range source.Cookbooks {
+			allCookbooks[name] = cookbook
+		}
+	}
+
+	// Sort cookbook names for consistent output
+	var sortedNames []string
+	for name := range allCookbooks {
+		sortedNames = append(sortedNames, name)
+	}
+
+	// Simple sort implementation
+	for i := 0; i < len(sortedNames); i++ {
+		for j := i + 1; j < len(sortedNames); j++ {
+			if sortedNames[i] > sortedNames[j] {
+				sortedNames[i], sortedNames[j] = sortedNames[j], sortedNames[i]
+			}
+		}
+	}
+
+	// Write each cookbook with its dependencies
+	for _, name := range sortedNames {
+		cookbook := allCookbooks[name]
+		buffer.WriteString("  " + name + " (" + cookbook.Version + ")\n")
+
+		// Sort dependencies for consistent output
+		if len(cookbook.Dependencies) > 0 {
+			var depNames []string
+			for depName := range cookbook.Dependencies {
+				depNames = append(depNames, depName)
+			}
+
+			// Simple sort implementation for dependencies
+			for i := 0; i < len(depNames); i++ {
+				for j := i + 1; j < len(depNames); j++ {
+					if depNames[i] > depNames[j] {
+						depNames[i], depNames[j] = depNames[j], depNames[i]
+					}
+				}
+			}
+
+			// Write dependencies with indentation
+			for _, depName := range depNames {
+				constraint := cookbook.Dependencies[depName]
+				buffer.WriteString("    " + depName + " (" + constraint + ")\n")
+			}
+		}
 	}
 
 	return buffer.Bytes(), nil

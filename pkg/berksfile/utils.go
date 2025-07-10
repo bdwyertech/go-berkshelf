@@ -8,18 +8,18 @@ import (
 	"github.com/bdwyertech/go-berkshelf/pkg/template"
 )
 
-// ParseFile parses a Berksfile from a file path
-func ParseFile(filepath string) (*Berksfile, error) {
+// Load loads and parses a Policyfile.rb from the given path
+func Load(filepath string) (*Berksfile, error) {
 	data, err := template.Render(filepath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read Berksfile: %w", err)
 	}
 
-	return ParseBerksfile(data)
+	return Parse(data)
 }
 
-// FindBerksfile searches for a Policyfile.rb in the given directory and parent directories
-func FindBerksfile(startDir string) (string, error) {
+// Find searches for a Policyfile.rb in the given directory and parent directories
+func Find(startDir string) (string, error) {
 	dir := startDir
 	for {
 		policyfilePath := filepath.Join(dir, "Berksfile")
@@ -115,4 +115,32 @@ func FindCookbooksByNames(cookbooks []*CookbookDef, names []string) ([]*Cookbook
 	}
 
 	return found, missing
+}
+
+// ExtractDirectDependencies extracts the direct dependencies from a Berksfile
+func (b *Berksfile) ExtractDirectDependencies(groups []string) ([]string, error) {
+	// Get cookbooks, optionally filtered by groups
+	var cookbooks []*CookbookDef
+	if len(groups) > 0 {
+		cookbooks = b.GetCookbooks(groups...)
+	} else {
+		cookbooks = b.GetCookbooks()
+	}
+
+	// Extract cookbook names
+	var dependencies []string
+	for _, cookbook := range cookbooks {
+		dependencies = append(dependencies, cookbook.Name)
+	}
+
+	// Sort dependencies for consistent output
+	for i := 0; i < len(dependencies); i++ {
+		for j := i + 1; j < len(dependencies); j++ {
+			if dependencies[i] > dependencies[j] {
+				dependencies[i], dependencies[j] = dependencies[j], dependencies[i]
+			}
+		}
+	}
+
+	return dependencies, nil
 }
