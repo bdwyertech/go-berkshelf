@@ -136,8 +136,8 @@ func TestBerkshelfError_WithSuggestion(t *testing.T) {
 
 func TestErrorConstructors(t *testing.T) {
 	tests := []struct {
-		name        string
-		constructor func(string, error) *BerkshelfError
+		name         string
+		constructor  func(string, error) *BerkshelfError
 		expectedType ErrorType
 	}{
 		{"NewValidationError", NewValidationError, ErrorTypeValidation},

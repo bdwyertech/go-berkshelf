@@ -194,8 +194,8 @@ func TestMergeConfigs(t *testing.T) {
 				NoProxy:        []string{"localhost"},               // preserved from base
 				ChefConfig: &ChefConfig{
 					NodeName:      StringPtr("overlay-node"),
-					ClientKey:     StringPtr("/base/client.pem"),                // preserved from base
-					ChefServerURL: StringPtr("https://base-chef.example.com"),   // preserved from base
+					ClientKey:     StringPtr("/base/client.pem"),              // preserved from base
+					ChefServerURL: StringPtr("https://base-chef.example.com"), // preserved from base
 					Organization:  StringPtr("overlay-org"),
 					Environment:   StringPtr("production"),
 				},

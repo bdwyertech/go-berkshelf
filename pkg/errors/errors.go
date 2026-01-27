@@ -9,13 +9,13 @@ import (
 type ErrorType string
 
 const (
-	ErrorTypeValidation    ErrorType = "validation"
-	ErrorTypeNetwork       ErrorType = "network"
-	ErrorTypeResolution    ErrorType = "resolution"
-	ErrorTypeParsing       ErrorType = "parsing"
-	ErrorTypeFileSystem    ErrorType = "filesystem"
+	ErrorTypeValidation     ErrorType = "validation"
+	ErrorTypeNetwork        ErrorType = "network"
+	ErrorTypeResolution     ErrorType = "resolution"
+	ErrorTypeParsing        ErrorType = "parsing"
+	ErrorTypeFileSystem     ErrorType = "filesystem"
 	ErrorTypeAuthentication ErrorType = "authentication"
-	ErrorTypeConfiguration ErrorType = "configuration"
+	ErrorTypeConfiguration  ErrorType = "configuration"
 )
 
 // BerkshelfError represents a structured error with context
@@ -30,13 +30,13 @@ type BerkshelfError struct {
 // Error implements the error interface
 func (e *BerkshelfError) Error() string {
 	var parts []string
-	
+
 	parts = append(parts, fmt.Sprintf("[%s] %s", e.Type, e.Message))
-	
+
 	if e.Cause != nil {
 		parts = append(parts, fmt.Sprintf("Caused by: %s", e.Cause.Error()))
 	}
-	
+
 	if len(e.Context) > 0 {
 		var contextParts []string
 		for k, v := range e.Context {
@@ -44,11 +44,11 @@ func (e *BerkshelfError) Error() string {
 		}
 		parts = append(parts, fmt.Sprintf("Context: %s", strings.Join(contextParts, ", ")))
 	}
-	
+
 	if len(e.Suggestions) > 0 {
 		parts = append(parts, fmt.Sprintf("Suggestions: %s", strings.Join(e.Suggestions, "; ")))
 	}
-	
+
 	return strings.Join(parts, "\n")
 }
 
@@ -215,25 +215,25 @@ func (ec *ErrorCollector) Error() string {
 	if len(ec.errors) == 0 {
 		return ""
 	}
-	
+
 	if len(ec.errors) == 1 {
 		return ec.errors[0].Error()
 	}
-	
+
 	var parts []string
 	parts = append(parts, fmt.Sprintf("Multiple errors occurred (%d total):", len(ec.errors)))
-	
+
 	for i, err := range ec.errors {
 		parts = append(parts, fmt.Sprintf("  %d. %s", i+1, err.Error()))
 	}
-	
+
 	return strings.Join(parts, "\n")
 }
 
 // Summary returns a summary of errors by type
 func (ec *ErrorCollector) Summary() map[ErrorType]int {
 	summary := make(map[ErrorType]int)
-	
+
 	for _, err := range ec.errors {
 		if berkshelfErr, ok := err.(*BerkshelfError); ok {
 			summary[berkshelfErr.Type]++
@@ -241,6 +241,6 @@ func (ec *ErrorCollector) Summary() map[ErrorType]int {
 			summary["unknown"]++
 		}
 	}
-	
+
 	return summary
 }

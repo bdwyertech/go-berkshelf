@@ -93,11 +93,11 @@ func TestLoadFromEnvironment(t *testing.T) {
 		{
 			name: "complete configuration",
 			envVars: map[string]string{
-				"BERKSHELF_CACHE_PATH":   "/opt/berkshelf/cache",
-				"BERKSHELF_SSL_VERIFY":   "true",
-				"BERKSHELF_API_TIMEOUT":  "45",
-				"BERKSHELF_RETRY_COUNT":  "3",
-				"BERKSHELF_RETRY_DELAY":  "1",
+				"BERKSHELF_CACHE_PATH":  "/opt/berkshelf/cache",
+				"BERKSHELF_SSL_VERIFY":  "true",
+				"BERKSHELF_API_TIMEOUT": "45",
+				"BERKSHELF_RETRY_COUNT": "3",
+				"BERKSHELF_RETRY_DELAY": "1",
 				"BERKSHELF_CONCURRENCY": "8",
 				"BERKSHELF_PROXY":       "http://corporate-proxy:3128",
 				"BERKSHELF_NO_PROXY":    "localhost,*.internal.com",
@@ -116,9 +116,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 		{
 			name: "chef configuration",
 			envVars: map[string]string{
-				"CHEF_NODE_NAME":   "test-node",
-				"CHEF_CLIENT_KEY":  "/path/to/client.pem",
-				"CHEF_SERVER_URL":  "https://chef.example.com",
+				"CHEF_NODE_NAME":    "test-node",
+				"CHEF_CLIENT_KEY":   "/path/to/client.pem",
+				"CHEF_SERVER_URL":   "https://chef.example.com",
 				"CHEF_ORGANIZATION": "test-org",
 				"CHEF_ENVIRONMENT":  "production",
 			},
@@ -135,10 +135,10 @@ func TestLoadFromEnvironment(t *testing.T) {
 		{
 			name: "invalid values ignored",
 			envVars: map[string]string{
-				"BERKSHELF_API_TIMEOUT":  "invalid",
-				"BERKSHELF_RETRY_COUNT":  "-1", // negative values should be ignored for retry count
+				"BERKSHELF_API_TIMEOUT": "invalid",
+				"BERKSHELF_RETRY_COUNT": "-1", // negative values should be ignored for retry count
 				"BERKSHELF_CONCURRENCY": "0",  // zero/negative values should be ignored for concurrency
-				"BERKSHELF_SSL_VERIFY":   "maybe",
+				"BERKSHELF_SSL_VERIFY":  "maybe",
 			},
 			expected: nil, // Should return nil when no valid env vars are set
 		},

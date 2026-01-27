@@ -165,21 +165,21 @@ Examples:
 
 		// Update lock files
 		lockManager := lockfile.NewManager(".")
-		
+
 		// Extract direct dependencies from Berksfile for DEPENDENCIES section
 		berksfilePath := "Berksfile"
 		var groups []string
 		if len(updateOnly) > 0 {
 			groups = updateOnly
 		}
-		
+
 		dependencies, err := lockfile.ExtractDirectDependencies(berksfilePath, groups)
 		if err != nil {
 			log.Warnf("Failed to extract direct dependencies for Ruby lock file: %v", err)
 			// Continue with empty dependencies list
 			dependencies = []string{}
 		}
-		
+
 		// Generate and save both formats
 		if err := lockManager.GenerateBoth(resolution, dependencies); err != nil {
 			return fmt.Errorf("failed to generate lock files: %w", err)

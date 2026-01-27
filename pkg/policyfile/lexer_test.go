@@ -100,7 +100,7 @@ default_source :supermarket`
 			t.Errorf("Token %d: expected %d, got %d", i, expectedToken, token)
 		}
 	}
-	
+
 	// Check for EOF
 	token := lexer.Lex(&lval)
 	if token != 0 {
