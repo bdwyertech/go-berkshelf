@@ -83,7 +83,7 @@ cookbook 'nginx', github: 'chef-cookbooks/nginx', tag: 'v2.7.0'
 **Chef Server Sources:**
 ```ruby
 # Chef Server with authentication
-cookbook 'windows-security-policy', chef_server: "https://chef.devops.myorg.net/", client_name: "myuser", client_key: "~/.chef/myorg/devops/myuser.pem"
+cookbook 'windows-security-policy', chef_server: "https://chef.example.com/organizations/myorg", client_name: "dwyerb", client_key: "~/.chef/myorg/devops/dwyerb.pem"
 
 # Chef Server with multiple options
 cookbook 'enterprise-cookbook', chef_server: "https://chef.example.com/organizations/myorg", client_name: "myuser", client_key: "~/.chef/myuser.pem", node_name: "mynode"
@@ -111,7 +111,7 @@ cookbook 'modern-cookbook', artifactory: "https://artifactory.example/api/chef/m
 ```ruby
 # Version constraint with alternative source
 cookbook 'jenkins', '~> 2.1', git: 'https://github.com/chef-cookbooks/jenkins.git'
-cookbook 'windows-security-policy', '~> 1.0', chef_server: "https://chef.devops.myorg.net/", client_name: "myuser"
+cookbook 'windows-security-policy', '~> 1.0', chef_server: "https://chef.example.com/organizations/myorg", client_name: "dwyerb"
 ```
 
 ## Usage
