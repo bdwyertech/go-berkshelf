@@ -1,0 +1,90 @@
+# Encoding: UTF-8
+project_name: berkshelf
+
+before:
+  hooks:
+    # - go mod tidy
+    # - go generate ./...
+builds:
+  - main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -mod=vendor
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/bdwyertech/go-berkshelf/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/bdwyertech/go-berkshelf/internal/version.ReleaseVer={{.Version}}
+      - -X github.com/bdwyertech/go-berkshelf/internal/version.ReleaseDate={{.Date}}
+
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - ONLY_BINARY*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: '{{ .Tag }}-next'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  # disable: true
+  footer: |
+    ## Verification
+
+    ### Build Provenance
+    This release includes build provenance attestations. Verify with:
+    ```bash
+    gh attestation verify berkshelf.exe --owner bdwyertech
+    ```
+
+    ### Cosign Signature
+    Checksums are signed with Cosign. Verify with:
+    ```bash
+    cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json --certificate-identity-regexp=https://github.com/bdwyertech --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+    ```
+
+    ### SBOM
+    Software Bill of Materials (SBOM) files are included for supply chain transparency.
+
+# creates SBOMs of all archives and the source tarball using syft
+# https://goreleaser.com/customization/sbom
+sboms:
+  - artifacts: archive
+  - id: source # Two different sbom configurations need two different IDs
+    artifacts: source
+
+# signs the checksum file
+# all files (including the sboms) are included in the checksum, so we don't need to sign each one if we don't want to
+# https://goreleaser.com/customization/sign
+signs:
+  - cmd: cosign
+    signature: '${artifact}.sigstore.json'
+    args:
+      - sign-blob
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes' # needed on cosign 2.0.0+
+    artifacts: checksum
+    output: true
