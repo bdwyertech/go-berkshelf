@@ -32,14 +32,20 @@ This command downloads cookbooks from the lock file to a target directory,
 maintaining the proper directory structure for Chef. This is useful for
 packaging cookbooks for deployment or creating a self-contained cookbook bundle.
 
+If no PATH is provided, cookbooks will be vendored to ./berks-cookbooks.
+
 Examples:
+     berks vendor
      berks vendor ./vendor
-	 berks vendor --delete                    # Delete target directory first
-	 berks vendor ./vendor --only production  # Vendor only production group cookbooks
-	 berks vendor ./vendor --except test      # Vendor all except test group cookbooks`,
-	Args: cobra.ExactArgs(1),
+ 	 berks vendor --delete                    # Delete target directory first
+ 	 berks vendor ./vendor --only production  # Vendor only production group cookbooks
+ 	 berks vendor ./vendor --except test      # Vendor all except test group cookbooks`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		targetPath := args[0]
+		targetPath := "berks-cookbooks"
+		if len(args) == 1 {
+			targetPath = args[0]
+		}
 
 		if viper.GetBool("install") {
 			if err := installCmd.RunE(cmd, args); err != nil {
