@@ -2,9 +2,10 @@ package lockfile
 
 import (
 	"bytes"
-	"encoding/json"
 	"maps"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 )
