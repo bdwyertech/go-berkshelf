@@ -61,8 +61,8 @@ func CreateRequirementsFromCookbooks(cookbooks []*berksfile.CookbookDef) []*reso
 	for _, cookbook := range cookbooks {
 		var req *resolver.Requirement
 
-		// Only pass source if it's not empty (has type and URL)
-		if cookbook.Source != nil && cookbook.Source.Type != "" && cookbook.Source.URL != "" {
+		// Only pass source if it's not empty (has type and either URL or Path)
+		if cookbook.Source != nil && cookbook.Source.Type != "" && (cookbook.Source.URL != "" || cookbook.Source.Path != "") {
 			req = resolver.NewRequirementWithSource(cookbook.Name, cookbook.Constraint, cookbook.Source)
 		} else {
 			// Use global sources for cookbooks without specific sources
