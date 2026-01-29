@@ -7,7 +7,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bdwyertech/go-berkshelf/pkg/berksfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
 	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
+	"github.com/bdwyertech/go-berkshelf/pkg/resolver"
+	"github.com/bdwyertech/go-berkshelf/pkg/source"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -75,6 +78,24 @@ Examples:
 		// 3. Create requirements from cookbooks
 		log.Info("Creating requirements...")
 		requirements := CreateRequirementsFromCookbooks(cookbooks)
+		if berks.HasMetadata {
+			pathSrc, err := source.NewPathSource(".")
+			if err != nil {
+				return fmt.Errorf("failed to create path source for metadata: %w", err)
+			}
+			metadata, err := pathSrc.ReadMetadata(".")
+			if err != nil {
+				return fmt.Errorf("failed to read metadata: %w", err)
+			}
+
+			log.Debugf("Found cookbook %s (%s) via metadata", metadata.Name, metadata.Version)
+
+			req := resolver.NewRequirementWithSource(metadata.Name, nil, &berkshelf.SourceLocation{
+				Type: "path",
+				Path: ".",
+			})
+			requirements = append(requirements, req)
+		}
 
 		// 4. Set up sources
 		log.Info("Setting up sources...")

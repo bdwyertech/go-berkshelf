@@ -19,6 +19,7 @@ func init() {
 	vendorCmd.Flags().Bool("delete", false, "Delete the target directory before vendoring")
 	vendorCmd.Flags().Bool("dry-run", false, "Show what would be done without actually doing it")
 	vendorCmd.Flags().Bool("install", true, "Automatically create/update lockfile")
+	vendorCmd.Flags().Bool("force", false, "Force installation even if Berksfile.lock is up to date")
 	vendorCmd.Flags().StringSliceP("only", "o", nil, "Only vendor cookbooks in specified groups")
 	vendorCmd.Flags().StringSliceP("except", "e", nil, "Vendor all cookbooks except those in specified groups")
 }

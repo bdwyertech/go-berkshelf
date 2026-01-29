@@ -50,7 +50,7 @@ func (p *PathSource) findCookbookPath(name string) (string, error) {
 	// First check if the base path itself is the cookbook
 	if p.isCookbook(p.basePath) {
 		// Check if the cookbook name matches
-		metadata, err := p.readMetadata(p.basePath)
+		metadata, err := p.ReadMetadata(p.basePath)
 		if err == nil && metadata.Name == name {
 			return p.basePath, nil
 		}
@@ -70,7 +70,7 @@ func (p *PathSource) findCookbookPath(name string) (string, error) {
 		cookbookPath := filepath.Join(p.basePath, entry.Name())
 		if p.isCookbook(cookbookPath) {
 			// Check if this is the cookbook we're looking for
-			metadata, err := p.readMetadata(cookbookPath)
+			metadata, err := p.ReadMetadata(cookbookPath)
 			if err == nil && metadata.Name == name {
 				return cookbookPath, nil
 			}
@@ -101,18 +101,18 @@ func (p *PathSource) isCookbook(path string) bool {
 	return false
 }
 
-// readMetadata reads cookbook metadata from a directory.
-func (p *PathSource) readMetadata(cookbookPath string) (*berkshelf.Metadata, error) {
+// ReadMetadata reads cookbook metadata from a directory.
+func (p *PathSource) ReadMetadata(cookbookPath string) (*berkshelf.Metadata, error) {
 	// Try metadata.json first
 	metadataPath := filepath.Join(cookbookPath, "metadata.json")
 	if _, err := os.Stat(metadataPath); err == nil {
-		return p.readMetadataJSON(metadataPath)
+		return p.ReadMetadataJSON(metadataPath)
 	}
 
 	// Try metadata.rb
 	metadataPath = filepath.Join(cookbookPath, "metadata.rb")
 	if _, err := os.Stat(metadataPath); err == nil {
-		return p.readMetadataRB(metadataPath, cookbookPath)
+		return p.ReadMetadataRB(metadataPath, cookbookPath)
 	}
 
 	return nil, &ErrInvalidMetadata{
@@ -131,8 +131,8 @@ type metadataJSON struct {
 	Dependencies map[string]interface{} `json:"dependencies"`
 }
 
-// readMetadataJSON parses a metadata.json file.
-func (p *PathSource) readMetadataJSON(path string) (*berkshelf.Metadata, error) {
+// ReadMetadataJSON parses a metadata.json file.
+func (p *PathSource) ReadMetadataJSON(path string) (*berkshelf.Metadata, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading metadata.json: %w", err)
@@ -187,8 +187,8 @@ func (p *PathSource) readMetadataJSON(path string) (*berkshelf.Metadata, error) 
 	}, nil
 }
 
-// readMetadataRB parses a metadata.rb file (simplified).
-func (p *PathSource) readMetadataRB(path string, cookbookPath string) (*berkshelf.Metadata, error) {
+// ReadMetadataRB parses a metadata.rb file (simplified).
+func (p *PathSource) ReadMetadataRB(path string, cookbookPath string) (*berkshelf.Metadata, error) {
 	// For now, we'll do a very simple parsing of metadata.rb
 	// In a full implementation, we would need a Ruby parser
 
@@ -288,7 +288,7 @@ func (p *PathSource) ListVersions(ctx context.Context, name string) ([]*berkshel
 		return nil, err
 	}
 
-	metadata, err := p.readMetadata(cookbookPath)
+	metadata, err := p.ReadMetadata(cookbookPath)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func (p *PathSource) FetchMetadata(ctx context.Context, name string, version *be
 		return nil, err
 	}
 
-	metadata, err := p.readMetadata(cookbookPath)
+	metadata, err := p.ReadMetadata(cookbookPath)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func (p *PathSource) FetchCookbook(ctx context.Context, name string, version *be
 		return nil, err
 	}
 
-	metadata, err := p.readMetadata(cookbookPath)
+	metadata, err := p.ReadMetadata(cookbookPath)
 	if err != nil {
 		return nil, err
 	}
