@@ -406,9 +406,9 @@ func getSourceKey(loc *berkshelf.SourceLocation) string {
 		return source.PUBLIC_SUPERMARKET
 	}
 
-	// For path sources, use the path as the key
-	if loc.Type == "path" && loc.Path != "" {
-		return loc.Path
+	// For path sources, use "path" as the key to group all path cookbooks together
+	if loc.Type == "path" {
+		return "path"
 	}
 
 	// For git sources, use the URL as the key

@@ -352,7 +352,6 @@ func (p *PathSource) FetchCookbook(ctx context.Context, name string, version *be
 func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *berkshelf.Cookbook, targetDir string) error {
 	sourceDir := cookbook.Path
 	if sourceDir == "" {
-		// Find the cookbook path if not already set
 		cookbookPath, err := p.findCookbookPath(cookbook.Name)
 		if err != nil {
 			return fmt.Errorf("finding cookbook path: %w", err)
@@ -360,18 +359,32 @@ func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *b
 		sourceDir = cookbookPath
 	}
 
-	// Create target directory
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("resolving target path: %w", err)
+	}
+
+	// Get the vendor root (parent of targetDir)
+	vendorRoot := filepath.Dir(absTargetDir)
+
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("creating target directory: %w", err)
 	}
 
-	// Copy all files from source to target
-	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Calculate relative path
+		absPath, _ := filepath.Abs(path)
+		// Skip the vendor root directory and anything inside it
+		if absPath == vendorRoot || strings.HasPrefix(absPath+string(filepath.Separator), vendorRoot+string(filepath.Separator)) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
 		relPath, err := filepath.Rel(sourceDir, path)
 		if err != nil {
 			return err
@@ -383,7 +396,6 @@ func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *b
 			return os.MkdirAll(targetPath, info.Mode())
 		}
 
-		// Copy file
 		return copyFile(path, targetPath, info.Mode())
 	})
 
@@ -391,9 +403,7 @@ func (p *PathSource) DownloadAndExtractCookbook(ctx context.Context, cookbook *b
 		return fmt.Errorf("copying cookbook files: %w", err)
 	}
 
-	// Update cookbook path
 	cookbook.Path = targetDir
-
 	return nil
 }
 

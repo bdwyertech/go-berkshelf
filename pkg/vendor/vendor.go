@@ -31,8 +31,8 @@ type Result struct {
 	TotalCookbooks int
 	// SuccessfulDownloads is the number of successful downloads
 	SuccessfulDownloads int
-	// FailedDownloads is the list of failed cookbook downloads
-	FailedDownloads []string
+	// FailedDownloads maps cookbook names to their error messages
+	FailedDownloads map[string]string
 	// TargetPath is the absolute path where cookbooks were vendored
 	TargetPath string
 }
@@ -62,7 +62,8 @@ func (v *Vendorer) Vendor(ctx context.Context) (*Result, error) {
 	}
 
 	result := &Result{
-		TargetPath: absPath,
+		TargetPath:      absPath,
+		FailedDownloads: make(map[string]string),
 	}
 
 	// Create allowed set for filtering
@@ -112,20 +113,20 @@ func (v *Vendorer) Vendor(ctx context.Context) (*Result, error) {
 			// Find the cookbook version
 			version, err := berkshelf.NewVersion(lockedCookbook.Version)
 			if err != nil {
-				result.FailedDownloads = append(result.FailedDownloads, cookbookName)
+				result.FailedDownloads[cookbookName] = fmt.Sprintf("invalid version: %v", err)
 				continue
 			}
 
 			// Create cookbook directory
 			cookbookDir := filepath.Join(absPath, cookbookName)
 			if err := os.MkdirAll(cookbookDir, 0755); err != nil {
-				result.FailedDownloads = append(result.FailedDownloads, cookbookName)
+				result.FailedDownloads[cookbookName] = fmt.Sprintf("failed to create directory: %v", err)
 				continue
 			}
 
 			// Download cookbook from appropriate source
 			if err := v.downloadCookbook(ctx, cookbookName, version, cookbookDir); err != nil {
-				result.FailedDownloads = append(result.FailedDownloads, cookbookName)
+				result.FailedDownloads[cookbookName] = err.Error()
 				continue
 			}
 
@@ -143,16 +144,21 @@ func (v *Vendorer) downloadCookbook(ctx context.Context, cookbookName string, ve
 		if lockedCookbook, exists := lockSource.Cookbooks[cookbookName]; exists {
 			// Create source from lock file source info
 			src, err := v.createSourceFromLockFile(lockedCookbook.Source)
-			if err == nil {
-				// Fetch cookbook metadata
-				cookbook, err := src.FetchCookbook(ctx, cookbookName, version)
-				if err == nil {
-					log.Infof("Vendoring %s (%s) to %s", cookbook.Name, version, targetDir)
-					if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err == nil {
-						return nil
-					}
-				}
+			if err != nil {
+				log.Debugf("Failed to create source from lockfile for %s: %v", cookbookName, err)
+				continue
 			}
+			// Fetch cookbook metadata
+			cookbook, err := src.FetchCookbook(ctx, cookbookName, version)
+			if err != nil {
+				log.Debugf("Failed to fetch %s from lockfile source: %v", cookbookName, err)
+				continue
+			}
+			log.Infof("Vendoring %s (%s) to %s", cookbook.Name, version, targetDir)
+			if err := src.DownloadAndExtractCookbook(ctx, cookbook, targetDir); err != nil {
+				return fmt.Errorf("failed to download from lockfile source: %w", err)
+			}
+			return nil
 		}
 	}
 

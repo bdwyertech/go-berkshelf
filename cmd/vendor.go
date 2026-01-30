@@ -133,8 +133,8 @@ Examples:
 
 			if len(result.FailedDownloads) > 0 {
 				log.Warnf("\nWarning: Failed to download %d cookbook(s):\n", len(result.FailedDownloads))
-				for _, name := range result.FailedDownloads {
-					log.Warnf("  - %s\n", name)
+				for name, errMsg := range result.FailedDownloads {
+					log.Warnf("  - %s: %s\n", name, errMsg)
 				}
 			}
 		}
