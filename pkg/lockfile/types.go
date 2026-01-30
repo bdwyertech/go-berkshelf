@@ -50,21 +50,21 @@ func NewLockFile() *LockFile {
 	}
 }
 
-// AddCookbook adds a cookbook to the lock file under the specified source
-func (lf *LockFile) AddCookbook(sourceURL string, cookbook *berkshelf.Cookbook, sourceInfo *SourceInfo) {
+// AddCookbook adds a cookbook to the lock file under the specified source key
+func (lf *LockFile) AddCookbook(sourceKey string, cookbook *berkshelf.Cookbook, sourceInfo *SourceInfo) {
 	// Handle nil sourceInfo by creating a default one
 	if sourceInfo == nil {
 		sourceInfo = &SourceInfo{
 			Type: "supermarket",
-			URL:  sourceURL,
+			URL:  sourceKey,
 		}
 	}
 
 	// Ensure source exists
-	if lf.Sources[sourceURL] == nil {
-		lf.Sources[sourceURL] = &SourceLock{
+	if lf.Sources[sourceKey] == nil {
+		lf.Sources[sourceKey] = &SourceLock{
 			Type:      sourceInfo.Type,
-			URL:       sourceURL,
+			URL:       sourceInfo.URL,
 			Cookbooks: make(map[string]*CookbookLock),
 		}
 	}
@@ -76,7 +76,7 @@ func (lf *LockFile) AddCookbook(sourceURL string, cookbook *berkshelf.Cookbook, 
 	}
 
 	// Add cookbook lock
-	lf.Sources[sourceURL].Cookbooks[cookbook.Name] = &CookbookLock{
+	lf.Sources[sourceKey].Cookbooks[cookbook.Name] = &CookbookLock{
 		Version:      cookbook.Version.String(),
 		Dependencies: deps,
 		Source:       sourceInfo,

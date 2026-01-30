@@ -141,20 +141,18 @@ func (m *Manager) Generate(resolution *resolver.Resolution) (*LockFile, error) {
 	for _, resolvedCookbook := range resolution.Cookbooks {
 		// Handle nil source (use default)
 		var sourceInfo *SourceInfo
-		var sourceURL string
+		var sourceKey string
 
 		if resolvedCookbook.Source != nil {
 			sourceInfo = createSourceInfoFromLocation(resolvedCookbook.Source)
-			sourceURL = resolvedCookbook.Source.URL
-		}
-
-		// Use default source if URL is empty or source is nil
-		if sourceURL == "" {
-			sourceURL = source.PUBLIC_SUPERMARKET
+			sourceKey = getSourceKey(resolvedCookbook.Source)
+		} else {
+			// Use default source if source is nil
+			sourceKey = source.PUBLIC_SUPERMARKET
 		}
 
 		// Add to lock file
-		lockFile.AddCookbook(sourceURL, resolvedCookbook.Cookbook, sourceInfo)
+		lockFile.AddCookbook(sourceKey, resolvedCookbook.Cookbook, sourceInfo)
 	}
 
 	return lockFile, nil
@@ -394,12 +392,37 @@ func createSourceInfoFromLocation(loc *berkshelf.SourceLocation) *SourceInfo {
 		}
 	}
 
-	// Set default URL if empty
-	if sourceInfo.URL == "" {
+	// Only set default URL for supermarket sources without a URL
+	if sourceInfo.Type == "supermarket" && sourceInfo.URL == "" {
 		sourceInfo.URL = source.PUBLIC_SUPERMARKET
 	}
 
 	return sourceInfo
+}
+
+// getSourceKey returns the appropriate key for grouping cookbooks by source
+func getSourceKey(loc *berkshelf.SourceLocation) string {
+	if loc == nil {
+		return source.PUBLIC_SUPERMARKET
+	}
+
+	// For path sources, use the path as the key
+	if loc.Type == "path" && loc.Path != "" {
+		return loc.Path
+	}
+
+	// For git sources, use the URL as the key
+	if loc.Type == "git" && loc.URL != "" {
+		return loc.URL
+	}
+
+	// For supermarket and chef_server, use the URL
+	if loc.URL != "" {
+		return loc.URL
+	}
+
+	// Fallback to default supermarket
+	return source.PUBLIC_SUPERMARKET
 }
 
 // ExtractDirectDependencies extracts the direct dependencies from a Berksfile
