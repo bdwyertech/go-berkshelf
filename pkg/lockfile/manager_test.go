@@ -393,3 +393,143 @@ func TestManagerBackup(t *testing.T) {
 		t.Errorf("Backup file should exist: %v", err)
 	}
 }
+
+func TestSourceKeyGrouping(t *testing.T) {
+	tests := []struct {
+		name     string
+		location *berkshelf.SourceLocation
+		expected string
+	}{
+		{
+			name:     "path source",
+			location: &berkshelf.SourceLocation{Type: "path", Path: "/some/path"},
+			expected: "path",
+		},
+		{
+			name:     "git source",
+			location: &berkshelf.SourceLocation{Type: "git", URL: "https://github.com/example/repo.git"},
+			expected: "https://github.com/example/repo.git",
+		},
+		{
+			name:     "supermarket source",
+			location: &berkshelf.SourceLocation{Type: "supermarket", URL: "https://supermarket.chef.io"},
+			expected: "https://supermarket.chef.io",
+		},
+		{
+			name:     "nil source",
+			location: nil,
+			expected: source.PUBLIC_SUPERMARKET,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := getSourceKey(tt.location)
+			if key != tt.expected {
+				t.Errorf("Expected key %q, got %q", tt.expected, key)
+			}
+		})
+	}
+}
+
+func TestLockfileWithMultipleSourceTypes(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "lockfile_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	manager := NewManager(tmpDir)
+	resolution := resolver.NewResolution()
+
+	// Add path cookbook
+	pathVersion, _ := berkshelf.NewVersion("0.0.1")
+	pathCookbook := &berkshelf.Cookbook{
+		Name:         "test",
+		Version:      pathVersion,
+		Dependencies: make(map[string]*berkshelf.Constraint),
+	}
+	pathResolved := &resolver.ResolvedCookbook{
+		Name:     "test",
+		Version:  pathVersion,
+		Cookbook: pathCookbook,
+		Source: &berkshelf.SourceLocation{
+			Type: "path",
+			Path: "/path/to/test",
+		},
+	}
+	resolution.AddCookbook(pathResolved)
+
+	// Add git cookbook
+	gitVersion, _ := berkshelf.NewVersion("1.0.0")
+	gitCookbook := &berkshelf.Cookbook{
+		Name:         "git-cookbook",
+		Version:      gitVersion,
+		Dependencies: make(map[string]*berkshelf.Constraint),
+	}
+	gitResolved := &resolver.ResolvedCookbook{
+		Name:     "git-cookbook",
+		Version:  gitVersion,
+		Cookbook: gitCookbook,
+		Source: &berkshelf.SourceLocation{
+			Type: "git",
+			URL:  "https://github.com/example/cookbook.git",
+		},
+	}
+	resolution.AddCookbook(gitResolved)
+
+	// Add supermarket cookbook
+	supermarketVersion, _ := berkshelf.NewVersion("2.0.0")
+	supermarketCookbook := &berkshelf.Cookbook{
+		Name:         "nginx",
+		Version:      supermarketVersion,
+		Dependencies: make(map[string]*berkshelf.Constraint),
+	}
+	supermarketResolved := &resolver.ResolvedCookbook{
+		Name:     "nginx",
+		Version:  supermarketVersion,
+		Cookbook: supermarketCookbook,
+		Source: &berkshelf.SourceLocation{
+			Type: "supermarket",
+			URL:  source.PUBLIC_SUPERMARKET,
+		},
+	}
+	resolution.AddCookbook(supermarketResolved)
+
+	// Generate lockfile
+	lockFile, err := manager.Generate(resolution)
+	if err != nil {
+		t.Fatalf("Failed to generate lock file: %v", err)
+	}
+
+	// Verify all three source types are present
+	if len(lockFile.Sources) != 3 {
+		t.Errorf("Expected 3 sources, got %d", len(lockFile.Sources))
+	}
+
+	// Verify path source is keyed as "path"
+	if _, exists := lockFile.Sources["path"]; !exists {
+		t.Error("Path source should be keyed as 'path'")
+	}
+
+	// Verify git source is keyed by URL
+	if _, exists := lockFile.Sources["https://github.com/example/cookbook.git"]; !exists {
+		t.Error("Git source should be keyed by URL")
+	}
+
+	// Verify supermarket source is keyed by URL
+	if _, exists := lockFile.Sources[source.PUBLIC_SUPERMARKET]; !exists {
+		t.Error("Supermarket source should be keyed by URL")
+	}
+
+	// Verify cookbooks are in correct sources
+	if !lockFile.HasCookbook("test") {
+		t.Error("Lockfile should contain test cookbook")
+	}
+	if !lockFile.HasCookbook("git-cookbook") {
+		t.Error("Lockfile should contain git-cookbook")
+	}
+	if !lockFile.HasCookbook("nginx") {
+		t.Error("Lockfile should contain nginx cookbook")
+	}
+}

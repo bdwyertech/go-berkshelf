@@ -268,3 +268,59 @@ func TestPathSource_Search(t *testing.T) {
 		t.Errorf("Search() error = %v, want ErrNotImplemented", err)
 	}
 }
+
+func TestPathSource_DownloadAndExtractCookbook_NestedVendor(t *testing.T) {
+	// Create a test cookbook directory
+	tmpDir, err := os.MkdirTemp("", "berkshelf-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a cookbook
+	cookbookDir := filepath.Join(tmpDir, "test-cookbook")
+	os.MkdirAll(cookbookDir, 0755)
+
+	metadata := map[string]interface{}{
+		"name":    "test-cookbook",
+		"version": "1.0.0",
+	}
+
+	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
+	metadataPath := filepath.Join(cookbookDir, "metadata.json")
+	os.WriteFile(metadataPath, metadataJSON, 0644)
+
+	// Create some cookbook files
+	recipesDir := filepath.Join(cookbookDir, "recipes")
+	os.MkdirAll(recipesDir, 0755)
+	os.WriteFile(filepath.Join(recipesDir, "default.rb"), []byte("# Default recipe"), 0644)
+
+	// Create a vendor directory inside the cookbook (simulating berks-cookbooks)
+	vendorRoot := filepath.Join(cookbookDir, "berks-cookbooks")
+	targetDir := filepath.Join(vendorRoot, "test-cookbook")
+
+	// Test vendoring into a subdirectory of itself
+	source, _ := NewPathSource(cookbookDir)
+	version, _ := berkshelf.NewVersion("1.0.0")
+	cookbook, _ := source.FetchCookbook(context.Background(), "test-cookbook", version)
+
+	err = source.DownloadAndExtractCookbook(context.Background(), cookbook, targetDir)
+	if err != nil {
+		t.Fatalf("DownloadAndExtractCookbook() error = %v", err)
+	}
+
+	// Verify the cookbook was copied
+	if _, err := os.Stat(filepath.Join(targetDir, "metadata.json")); err != nil {
+		t.Error("metadata.json should exist in target directory")
+	}
+
+	if _, err := os.Stat(filepath.Join(targetDir, "recipes", "default.rb")); err != nil {
+		t.Error("recipes/default.rb should exist in target directory")
+	}
+
+	// Verify the vendor directory itself was NOT copied into the target
+	nestedVendor := filepath.Join(targetDir, "berks-cookbooks")
+	if _, err := os.Stat(nestedVendor); err == nil {
+		t.Error("berks-cookbooks directory should NOT be copied into target")
+	}
+}

@@ -1,1 +1,3 @@
 metadata
+
+cookbook 'windows-hardening', git: 'https://github.com/bdwyertech/chef-windows-hardening.git', branch: 'chef-16'
