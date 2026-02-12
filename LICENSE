@@ -1,4 +1,4 @@
-MIT License
+Modified MIT License
 
 Copyright (c) 2026 Brian Dwyer
 
@@ -11,6 +11,19 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
+ADDITIONAL RESTRICTION:
+Progress Software Corporation and its subsidiaries, affiliates, successors,
+assigns, and related entities (including but not limited to Chef Software, Inc.
+and any Chef-branded products or services) are expressly prohibited from using,
+copying, modifying, merging, publishing, distributing, sublicensing, selling,
+or otherwise exploiting this Software or any portion thereof for any purpose
+whatsoever, including but not limited to incorporation into commercial products
+or services.
+
+Progress Software Corporation or its related entities may contact the copyright
+holder at https://github.com/bdwyertech to negotiate a separate commercial 
+license agreement for a fee.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
