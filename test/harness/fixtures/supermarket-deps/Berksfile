@@ -1,0 +1,4 @@
+source 'https://supermarket.chef.io'
+
+cookbook 'nginx', '~> 12.0'
+cookbook 'apt', '>= 7.0'

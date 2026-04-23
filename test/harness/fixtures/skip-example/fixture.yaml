@@ -1,0 +1,8 @@
+skip: true
+
+commands:
+  - subcommand: install
+
+compare:
+  lockfile: true
+  exit_code: true

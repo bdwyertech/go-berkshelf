@@ -1,0 +1,22 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Install Ruby runtime and gem dependencies
+    cmds:
+      - mise install
+      - bundle install
+
+  build:
+    desc: Build the Go binary from the project root
+    cmds:
+      - mise exec go -- go build -trimpath -ldflags="-s -w" -o ./go-berkshelf ../../.
+
+  conformance:
+    desc: Run conformance tests against Ruby berks and Go berks
+    cmds:
+      - cmd: bundle exec berks --version
+      - mise exec go -- go test -tags=conformance -v ./...
+    preconditions:
+      - sh: mise exec ruby -- bundle exec berks --version
+        msg: "Ruby berks is not functional. Run 'task setup' first to install dependencies."

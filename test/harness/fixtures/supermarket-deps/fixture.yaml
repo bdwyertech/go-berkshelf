@@ -1,0 +1,9 @@
+commands:
+  - subcommand: install
+  - subcommand: list
+
+compare:
+  lockfile: true
+  stdout: false
+  stderr: false
+  exit_code: true
