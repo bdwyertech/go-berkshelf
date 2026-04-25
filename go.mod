@@ -8,11 +8,14 @@ require (
 	github.com/go-chef/chef v0.30.1
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/go-sprout/sprout v1.0.3
-	github.com/goccy/go-json v0.10.5
+	github.com/goccy/go-json v0.10.6
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/olekukonko/tablewriter v1.1.3
+	github.com/onsi/ginkgo/v2 v2.28.1
+	github.com/onsi/gomega v1.39.1
 	github.com/schollz/progressbar/v3 v3.19.0
+	github.com/sergi/go-diff v1.4.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
@@ -52,13 +55,10 @@ require (
 	github.com/olekukonko/cat v0.0.0-20250911104152-50322a0618f6 // indirect
 	github.com/olekukonko/errors v1.2.0 // indirect
 	github.com/olekukonko/ll v0.1.4 // indirect
-	github.com/onsi/ginkgo/v2 v2.28.1 // indirect
-	github.com/onsi/gomega v1.39.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
-	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
