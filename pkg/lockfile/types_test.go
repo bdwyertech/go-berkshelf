@@ -1,317 +1,248 @@
-package lockfile
+package lockfile_test
 
 import (
 	"encoding/json"
-	"testing"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/bdwyertech/go-berkshelf/pkg/berkshelf"
+	"github.com/bdwyertech/go-berkshelf/pkg/lockfile"
 )
 
-func TestNewLockFile(t *testing.T) {
-	lf := NewLockFile()
+var _ = Describe("LockFile Types", func() {
+	Describe("NewLockFile", func() {
+		It("should create lock file with defaults", func() {
+			lf := lockfile.NewLockFile()
+			Expect(lf.Revision).To(Equal(7))
+			Expect(lf.Sources).NotTo(BeNil())
+			Expect(lf.Sources).To(BeEmpty())
+		})
+	})
 
-	if lf.Revision != 7 {
-		t.Errorf("Expected revision 7, got %d", lf.Revision)
-	}
+	Describe("AddCookbook", func() {
+		It("should add cookbook with dependencies", func() {
+			lf := lockfile.NewLockFile()
 
-	if lf.Sources == nil {
-		t.Error("Sources map should be initialized")
-	}
+			version, err := berkshelf.NewVersion("1.2.3")
+			Expect(err).NotTo(HaveOccurred())
 
-	if len(lf.Sources) != 0 {
-		t.Errorf("Expected empty sources, got %d", len(lf.Sources))
-	}
-}
+			constraint, err := berkshelf.NewConstraint("~> 1.0")
+			Expect(err).NotTo(HaveOccurred())
 
-func TestAddCookbook(t *testing.T) {
-	lf := NewLockFile()
+			cookbook := &berkshelf.Cookbook{
+				Name:    "nginx",
+				Version: version,
+				Dependencies: map[string]*berkshelf.Constraint{
+					"apt": constraint,
+				},
+			}
 
-	version, err := berkshelf.NewVersion("1.2.3")
-	if err != nil {
-		t.Fatalf("Failed to create version: %v", err)
-	}
+			sourceInfo := &lockfile.SourceInfo{
+				Type: "supermarket",
+				URL:  "https://supermarket.chef.io",
+			}
 
-	constraint, err := berkshelf.NewConstraint("~> 1.0")
-	if err != nil {
-		t.Fatalf("Failed to create constraint: %v", err)
-	}
+			sourceURL := "https://supermarket.chef.io"
+			lf.AddCookbook(sourceURL, cookbook, sourceInfo)
 
-	cookbook := &berkshelf.Cookbook{
-		Name:    "nginx",
-		Version: version,
-		Dependencies: map[string]*berkshelf.Constraint{
-			"apt": constraint,
-		},
-	}
+			Expect(lf.Sources).To(HaveLen(1))
 
-	sourceInfo := &SourceInfo{
-		Type: "supermarket",
-		URL:  "https://supermarket.chef.io",
-	}
+			src, exists := lf.Sources[sourceURL]
+			Expect(exists).To(BeTrue())
+			Expect(src.Type).To(Equal("supermarket"))
 
-	sourceURL := "https://supermarket.chef.io"
-	lf.AddCookbook(sourceURL, cookbook, sourceInfo)
+			Expect(src.Cookbooks).To(HaveLen(1))
 
-	// Check if source was created
-	if len(lf.Sources) != 1 {
-		t.Errorf("Expected 1 source, got %d", len(lf.Sources))
-	}
+			cookbookLock, exists := src.Cookbooks["nginx"]
+			Expect(exists).To(BeTrue())
+			Expect(cookbookLock.Version).To(Equal("1.2.3"))
 
-	source, exists := lf.Sources[sourceURL]
-	if !exists {
-		t.Error("Source should exist")
-	}
+			Expect(cookbookLock.Dependencies).To(HaveLen(1))
+			aptConstraint, exists := cookbookLock.Dependencies["apt"]
+			Expect(exists).To(BeTrue())
+			Expect(aptConstraint).To(Equal("~> 1.0"))
+		})
+	})
 
-	if source.Type != "supermarket" {
-		t.Errorf("Expected source type 'supermarket', got '%s'", source.Type)
-	}
+	Describe("GetCookbook", func() {
+		var lf *lockfile.LockFile
 
-	// Check if cookbook was added
-	if len(source.Cookbooks) != 1 {
-		t.Errorf("Expected 1 cookbook, got %d", len(source.Cookbooks))
-	}
+		BeforeEach(func() {
+			lf = lockfile.NewLockFile()
+			version, _ := berkshelf.NewVersion("1.2.3")
+			cookbook := &berkshelf.Cookbook{
+				Name:         "nginx",
+				Version:      version,
+				Dependencies: make(map[string]*berkshelf.Constraint),
+			}
+			sourceInfo := &lockfile.SourceInfo{Type: "supermarket"}
+			lf.AddCookbook("https://supermarket.chef.io", cookbook, sourceInfo)
+		})
 
-	cookbookLock, exists := source.Cookbooks["nginx"]
-	if !exists {
-		t.Error("Cookbook 'nginx' should exist")
-	}
+		It("should return existing cookbook", func() {
+			cookbookLock, src, exists := lf.GetCookbook("nginx")
+			Expect(exists).To(BeTrue())
+			Expect(cookbookLock.Version).To(Equal("1.2.3"))
+			Expect(src).To(Equal("https://supermarket.chef.io"))
+		})
 
-	if cookbookLock.Version != "1.2.3" {
-		t.Errorf("Expected version '1.2.3', got '%s'", cookbookLock.Version)
-	}
+		It("should return false for non-existing cookbook", func() {
+			_, _, exists := lf.GetCookbook("nonexistent")
+			Expect(exists).To(BeFalse())
+		})
+	})
 
-	// Check dependencies
-	if len(cookbookLock.Dependencies) != 1 {
-		t.Errorf("Expected 1 dependency, got %d", len(cookbookLock.Dependencies))
-	}
+	Describe("HasCookbook", func() {
+		var lf *lockfile.LockFile
 
-	aptConstraint, exists := cookbookLock.Dependencies["apt"]
-	if !exists {
-		t.Error("Dependency 'apt' should exist")
-	}
+		BeforeEach(func() {
+			lf = lockfile.NewLockFile()
+			version, _ := berkshelf.NewVersion("1.2.3")
+			cookbook := &berkshelf.Cookbook{
+				Name:         "nginx",
+				Version:      version,
+				Dependencies: make(map[string]*berkshelf.Constraint),
+			}
+			sourceInfo := &lockfile.SourceInfo{Type: "supermarket"}
+			lf.AddCookbook("https://supermarket.chef.io", cookbook, sourceInfo)
+		})
 
-	if aptConstraint != "~> 1.0" {
-		t.Errorf("Expected constraint '~> 1.0', got '%s'", aptConstraint)
-	}
-}
+		It("should return true for existing cookbook", func() {
+			Expect(lf.HasCookbook("nginx")).To(BeTrue())
+		})
 
-func TestGetCookbook(t *testing.T) {
-	lf := NewLockFile()
+		It("should return false for non-existing cookbook", func() {
+			Expect(lf.HasCookbook("nonexistent")).To(BeFalse())
+		})
+	})
 
-	version, _ := berkshelf.NewVersion("1.2.3")
-	cookbook := &berkshelf.Cookbook{
-		Name:         "nginx",
-		Version:      version,
-		Dependencies: make(map[string]*berkshelf.Constraint),
-	}
+	Describe("ListCookbooks", func() {
+		It("should list cookbooks from multiple sources", func() {
+			lf := lockfile.NewLockFile()
 
-	sourceInfo := &SourceInfo{Type: "supermarket"}
-	sourceURL := "https://supermarket.chef.io"
+			version1, _ := berkshelf.NewVersion("1.2.3")
+			cookbook1 := &berkshelf.Cookbook{
+				Name:         "nginx",
+				Version:      version1,
+				Dependencies: make(map[string]*berkshelf.Constraint),
+			}
+			sourceInfo1 := &lockfile.SourceInfo{Type: "supermarket"}
+			lf.AddCookbook("https://supermarket.chef.io", cookbook1, sourceInfo1)
 
-	lf.AddCookbook(sourceURL, cookbook, sourceInfo)
+			version2, _ := berkshelf.NewVersion("2.0.0")
+			cookbook2 := &berkshelf.Cookbook{
+				Name:         "apache",
+				Version:      version2,
+				Dependencies: make(map[string]*berkshelf.Constraint),
+			}
+			sourceInfo2 := &lockfile.SourceInfo{Type: "git"}
+			lf.AddCookbook("https://github.com/example/apache", cookbook2, sourceInfo2)
 
-	// Test existing cookbook
-	cookbookLock, source, exists := lf.GetCookbook("nginx")
-	if !exists {
-		t.Error("Cookbook should exist")
-	}
+			cookbooks := lf.ListCookbooks()
+			Expect(cookbooks).To(HaveLen(2))
+			Expect(cookbooks).To(HaveKey("nginx"))
+			Expect(cookbooks).To(HaveKey("apache"))
+		})
+	})
 
-	if cookbookLock.Version != "1.2.3" {
-		t.Errorf("Expected version '1.2.3', got '%s'", cookbookLock.Version)
-	}
+	Describe("ToJSON", func() {
+		It("should serialize to valid JSON", func() {
+			lf := lockfile.NewLockFile()
+			lf.GeneratedAt = time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	if source != sourceURL {
-		t.Errorf("Expected source URL '%s', got '%s'", sourceURL, source)
-	}
+			version, _ := berkshelf.NewVersion("1.2.3")
+			constraint, _ := berkshelf.NewConstraint("~> 1.0")
+			cookbook := &berkshelf.Cookbook{
+				Name:    "nginx",
+				Version: version,
+				Dependencies: map[string]*berkshelf.Constraint{
+					"apt": constraint,
+				},
+			}
 
-	// Test non-existing cookbook
-	_, _, exists = lf.GetCookbook("nonexistent")
-	if exists {
-		t.Error("Non-existent cookbook should not exist")
-	}
-}
+			sourceInfo := &lockfile.SourceInfo{
+				Type: "supermarket",
+				URL:  "https://supermarket.chef.io",
+			}
 
-func TestHasCookbook(t *testing.T) {
-	lf := NewLockFile()
+			lf.AddCookbook("https://supermarket.chef.io", cookbook, sourceInfo)
 
-	version, _ := berkshelf.NewVersion("1.2.3")
-	cookbook := &berkshelf.Cookbook{
-		Name:         "nginx",
-		Version:      version,
-		Dependencies: make(map[string]*berkshelf.Constraint),
-	}
+			data, err := lf.ToJSON()
+			Expect(err).NotTo(HaveOccurred())
 
-	sourceInfo := &SourceInfo{Type: "supermarket"}
-	sourceURL := "https://supermarket.chef.io"
+			var parsed map[string]interface{}
+			err = json.Unmarshal(data, &parsed)
+			Expect(err).NotTo(HaveOccurred())
 
-	lf.AddCookbook(sourceURL, cookbook, sourceInfo)
+			revision, ok := parsed["revision"].(float64)
+			Expect(ok).To(BeTrue())
+			Expect(revision).To(Equal(float64(7)))
+		})
+	})
 
-	if !lf.HasCookbook("nginx") {
-		t.Error("Cookbook 'nginx' should exist")
-	}
-
-	if lf.HasCookbook("nonexistent") {
-		t.Error("Non-existent cookbook should not exist")
-	}
-}
-
-func TestListCookbooks(t *testing.T) {
-	lf := NewLockFile()
-
-	// Add cookbook to first source
-	version1, _ := berkshelf.NewVersion("1.2.3")
-	cookbook1 := &berkshelf.Cookbook{
-		Name:         "nginx",
-		Version:      version1,
-		Dependencies: make(map[string]*berkshelf.Constraint),
-	}
-
-	sourceInfo1 := &SourceInfo{Type: "supermarket"}
-	sourceURL1 := "https://supermarket.chef.io"
-	lf.AddCookbook(sourceURL1, cookbook1, sourceInfo1)
-
-	// Add cookbook to second source
-	version2, _ := berkshelf.NewVersion("2.0.0")
-	cookbook2 := &berkshelf.Cookbook{
-		Name:         "apache",
-		Version:      version2,
-		Dependencies: make(map[string]*berkshelf.Constraint),
-	}
-
-	sourceInfo2 := &SourceInfo{Type: "git"}
-	sourceURL2 := "https://github.com/example/apache"
-	lf.AddCookbook(sourceURL2, cookbook2, sourceInfo2)
-
-	cookbooks := lf.ListCookbooks()
-
-	if len(cookbooks) != 2 {
-		t.Errorf("Expected 2 cookbooks, got %d", len(cookbooks))
-	}
-
-	if _, exists := cookbooks["nginx"]; !exists {
-		t.Error("Cookbook 'nginx' should be in list")
-	}
-
-	if _, exists := cookbooks["apache"]; !exists {
-		t.Error("Cookbook 'apache' should be in list")
-	}
-}
-
-func TestToJSON(t *testing.T) {
-	lf := NewLockFile()
-	lf.GeneratedAt = time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
-
-	version, _ := berkshelf.NewVersion("1.2.3")
-	constraint, _ := berkshelf.NewConstraint("~> 1.0")
-	cookbook := &berkshelf.Cookbook{
-		Name:    "nginx",
-		Version: version,
-		Dependencies: map[string]*berkshelf.Constraint{
-			"apt": constraint,
-		},
-	}
-
-	sourceInfo := &SourceInfo{
-		Type: "supermarket",
-		URL:  "https://supermarket.chef.io",
-	}
-
-	lf.AddCookbook("https://supermarket.chef.io", cookbook, sourceInfo)
-
-	data, err := lf.ToJSON()
-	if err != nil {
-		t.Fatalf("Failed to serialize to JSON: %v", err)
-	}
-
-	// Verify it's valid JSON
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("Generated JSON is invalid: %v", err)
-	}
-
-	// Check basic structure
-	if revision, ok := parsed["revision"].(float64); !ok || revision != 7 {
-		t.Errorf("Expected revision 7, got %v", parsed["revision"])
-	}
-}
-
-func TestFromJSON(t *testing.T) {
-	jsonData := `{
-		"revision": 7,
-		"generated_at": "2023-01-01T12:00:00Z",
-		"sources": {
-			"https://supermarket.chef.io": {
-				"type": "supermarket",
-				"url": "https://supermarket.chef.io",
-				"cookbooks": {
-					"nginx": {
-						"version": "1.2.3",
-						"dependencies": {
-							"apt": "~> 1.0"
-						},
-						"source": {
-							"type": "supermarket",
-							"url": "https://supermarket.chef.io"
+	Describe("FromJSON", func() {
+		It("should deserialize from JSON", func() {
+			jsonData := `{
+				"revision": 7,
+				"generated_at": "2023-01-01T12:00:00Z",
+				"sources": {
+					"https://supermarket.chef.io": {
+						"type": "supermarket",
+						"url": "https://supermarket.chef.io",
+						"cookbooks": {
+							"nginx": {
+								"version": "1.2.3",
+								"dependencies": {
+									"apt": "~> 1.0"
+								},
+								"source": {
+									"type": "supermarket",
+									"url": "https://supermarket.chef.io"
+								}
+							}
 						}
 					}
 				}
-			}
-		}
-	}`
+			}`
 
-	lf, err := FromJSON([]byte(jsonData))
-	if err != nil {
-		t.Fatalf("Failed to parse JSON: %v", err)
-	}
+			lf, err := lockfile.FromJSON([]byte(jsonData))
+			Expect(err).NotTo(HaveOccurred())
 
-	if lf.Revision != 7 {
-		t.Errorf("Expected revision 7, got %d", lf.Revision)
-	}
+			Expect(lf.Revision).To(Equal(7))
+			Expect(lf.HasCookbook("nginx")).To(BeTrue())
 
-	if !lf.HasCookbook("nginx") {
-		t.Error("Cookbook 'nginx' should exist")
-	}
+			cookbook, _, exists := lf.GetCookbook("nginx")
+			Expect(exists).To(BeTrue())
+			Expect(cookbook.Version).To(Equal("1.2.3"))
+			Expect(cookbook.Dependencies).To(HaveLen(1))
+		})
+	})
 
-	cookbook, _, exists := lf.GetCookbook("nginx")
-	if !exists {
-		t.Fatal("Cookbook 'nginx' should exist")
-	}
+	Describe("IsOutdated", func() {
+		It("should be outdated when older than max age", func() {
+			lf := lockfile.NewLockFile()
+			lf.GeneratedAt = time.Now().Add(-2 * time.Hour)
+			Expect(lf.IsOutdated(1 * time.Hour)).To(BeTrue())
+		})
 
-	if cookbook.Version != "1.2.3" {
-		t.Errorf("Expected version '1.2.3', got '%s'", cookbook.Version)
-	}
+		It("should not be outdated when newer than max age", func() {
+			lf := lockfile.NewLockFile()
+			lf.GeneratedAt = time.Now().Add(-2 * time.Hour)
+			Expect(lf.IsOutdated(3 * time.Hour)).To(BeFalse())
+		})
+	})
 
-	if len(cookbook.Dependencies) != 1 {
-		t.Errorf("Expected 1 dependency, got %d", len(cookbook.Dependencies))
-	}
-}
+	Describe("UpdateGeneratedAt", func() {
+		It("should update generated timestamp", func() {
+			lf := lockfile.NewLockFile()
+			oldTime := lf.GeneratedAt
 
-func TestIsOutdated(t *testing.T) {
-	lf := NewLockFile()
-	lf.GeneratedAt = time.Now().Add(-2 * time.Hour)
+			time.Sleep(1 * time.Millisecond)
+			lf.UpdateGeneratedAt()
 
-	// Test with 1 hour max age (should be outdated)
-	if !lf.IsOutdated(1 * time.Hour) {
-		t.Error("Lock file should be outdated")
-	}
-
-	// Test with 3 hour max age (should not be outdated)
-	if lf.IsOutdated(3 * time.Hour) {
-		t.Error("Lock file should not be outdated")
-	}
-}
-
-func TestUpdateGeneratedAt(t *testing.T) {
-	lf := NewLockFile()
-	oldTime := lf.GeneratedAt
-
-	// Wait a small amount to ensure time difference
-	time.Sleep(1 * time.Millisecond)
-
-	lf.UpdateGeneratedAt()
-
-	if !lf.GeneratedAt.After(oldTime) {
-		t.Error("GeneratedAt should be updated to a later time")
-	}
-}
+			Expect(lf.GeneratedAt.After(oldTime)).To(BeTrue())
+		})
+	})
+})

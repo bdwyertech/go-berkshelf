@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConstraintSuite(t *testing.T) {
+func TestBerksfileSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Berksfile Constraint Suite")
+	RunSpecs(t, "Berksfile Suite")
 }

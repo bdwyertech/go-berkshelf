@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConstraintSuite(t *testing.T) {
+func TestLockfileSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Lockfile Constraint Suite")
+	RunSpecs(t, "Lockfile Suite")
 }
