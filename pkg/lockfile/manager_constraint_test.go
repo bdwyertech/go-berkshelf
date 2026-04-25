@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("ExtractDirectDependencies with constraints", func() {
 	var (
-		tmpDir       string
+		tmpDir        string
 		berksfilePath string
 	)
 
