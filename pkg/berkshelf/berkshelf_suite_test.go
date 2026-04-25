@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConstraintSuite(t *testing.T) {
+func TestBerkshelfSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Berkshelf Constraint Suite")
+	RunSpecs(t, "Berkshelf Suite")
 }
