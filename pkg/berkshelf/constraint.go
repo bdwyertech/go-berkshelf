@@ -105,7 +105,7 @@ func convertRubyConstraint(c string) string {
 	// Handle other Ruby-style operators that might need conversion
 	c = strings.ReplaceAll(c, "==", "=")
 
-	return c
+	return normalizeConstraintVersion(c)
 }
 
 // convertPessimisticConstraint converts Ruby's pessimistic constraint operator
