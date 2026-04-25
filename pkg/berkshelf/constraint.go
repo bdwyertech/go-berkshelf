@@ -59,12 +59,33 @@ func (c *Constraint) Check(v *Version) bool {
 	return c.constraint.Check(v.Version)
 }
 
-// String returns the original constraint string
+// String returns the constraint string normalized to Ruby's three-segment version format
+// for non-pessimistic constraints. For example, ">= 7.0" becomes ">= 7.0.0".
+// Pessimistic constraints (~>) are left as-is since Ruby preserves their original format.
 func (c *Constraint) String() string {
 	if c.raw == "" {
 		return ">= 0.0.0"
 	}
-	return c.raw
+	// Pessimistic constraints (~>) are not normalized by Ruby
+	if strings.Contains(c.raw, "~>") {
+		return c.raw
+	}
+	return normalizeConstraintVersion(c.raw)
+}
+
+// versionInConstraintRegex matches the version number portion of a constraint string
+var versionInConstraintRegex = regexp.MustCompile(`(\d+(?:\.\d+)*)`)
+
+// normalizeConstraintVersion pads version segments in a constraint to three parts
+// e.g. ">= 7.0" -> ">= 7.0.0", "= 5" -> "= 5.0.0"
+func normalizeConstraintVersion(raw string) string {
+	return versionInConstraintRegex.ReplaceAllStringFunc(raw, func(ver string) string {
+		parts := strings.Split(ver, ".")
+		for len(parts) < 3 {
+			parts = append(parts, "0")
+		}
+		return strings.Join(parts, ".")
+	})
 }
 
 // pessimisticRegex matches Ruby's pessimistic version operator (~>)

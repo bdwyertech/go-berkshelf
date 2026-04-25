@@ -127,10 +127,14 @@ func (b *Berksfile) ExtractDirectDependencies(groups []string) ([]string, error)
 		cookbooks = b.GetCookbooks()
 	}
 
-	// Extract cookbook names
+	// Extract cookbook names with optional constraint annotations
 	var dependencies []string
 	for _, cookbook := range cookbooks {
-		dependencies = append(dependencies, cookbook.Name)
+		if cookbook.Constraint != nil && cookbook.Constraint.String() != ">= 0.0.0" {
+			dependencies = append(dependencies, fmt.Sprintf("%s (%s)", cookbook.Name, cookbook.Constraint.String()))
+		} else {
+			dependencies = append(dependencies, cookbook.Name)
+		}
 	}
 
 	// Sort dependencies for consistent output
