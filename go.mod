@@ -11,7 +11,7 @@ require (
 	github.com/goccy/go-json v0.10.6
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
-	github.com/olekukonko/tablewriter v1.1.3
+	github.com/olekukonko/tablewriter v1.1.4
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 	github.com/schollz/progressbar/v3 v3.19.0
@@ -26,9 +26,9 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
-	github.com/clipperhouse/displaywidth v0.8.0 // indirect
-	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.4.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/clipperhouse/displaywidth v0.10.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.6.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -54,7 +54,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/olekukonko/cat v0.0.0-20250911104152-50322a0618f6 // indirect
 	github.com/olekukonko/errors v1.2.0 // indirect
-	github.com/olekukonko/ll v0.1.4 // indirect
+	github.com/olekukonko/ll v0.1.6 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

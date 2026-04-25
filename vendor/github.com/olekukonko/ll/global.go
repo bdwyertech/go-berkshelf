@@ -1,11 +1,9 @@
 package ll
 
 import (
-	"os"
 	"sync/atomic"
 	"time"
 
-	"github.com/olekukonko/ll/lh"
 	"github.com/olekukonko/ll/lx"
 )
 
@@ -14,16 +12,7 @@ import (
 // a logger instance. The logger is initialized with default settings: enabled, Debug level,
 // flat namespace style, and a text handler to os.Stdout. It is thread-safe due to the Logger
 // struct’s mutex.
-var defaultLogger = &Logger{
-	enabled:         true,                         // Initially enabled
-	level:           lx.LevelDebug,                // Minimum log level set to Debug
-	namespaces:      defaultStore,                 // Shared namespace store for enable/disable states
-	context:         make(map[string]interface{}), // Empty context for global fields
-	style:           lx.FlatPath,                  // Flat namespace style (e.g., [parent/child])
-	handler:         lh.NewTextHandler(os.Stdout), // Default text handler to os.Stdout
-	middleware:      make([]Middleware, 0),        // Empty middleware chain
-	stackBufferSize: 4096,                         // Buffer size for stack traces
-}
+var defaultLogger = New("")
 
 // Handler sets the handler for the default logger.
 // It configures the output destination and format (e.g., text, JSON) for logs emitted by
@@ -233,14 +222,23 @@ func Panicf(format string, args ...any) {
 }
 
 // If creates a conditional logger that logs only if the condition is true using the default logger.
-// It returns a Conditional struct that wraps the default logger, enabling conditional logging methods.
-// Thread-safe via the Logger’s mutex.
-// Example:
-//
-//	ll.If(true).Info("Logged")   // Output: [] INFO: Logged
-//	ll.If(false).Info("Ignored") // No output
 func If(condition bool) *Conditional {
 	return defaultLogger.If(condition)
+}
+
+// IfErr creates a conditional logger that logs only if the error is non-nil using the default logger.
+func IfErr(err error) *Conditional {
+	return defaultLogger.IfErr(err)
+}
+
+// IfErrAny creates a conditional logger that logs only if AT LEAST ONE error is non-nil using the default logger.
+func IfErrAny(errs ...error) *Conditional {
+	return defaultLogger.IfErrAny(errs...)
+}
+
+// IfErrOne creates a conditional logger that logs only if ALL errors are non-nil using the default logger.
+func IfErrOne(errs ...error) *Conditional {
+	return defaultLogger.IfErrOne(errs...)
 }
 
 // Context creates a new logger with additional contextual fields using the default logger.
@@ -472,6 +470,37 @@ func Measure(fns ...func()) time.Duration {
 	return defaultLogger.Measure(fns...)
 }
 
+// Labels temporarily attaches one or more label names to the logger for the next log entry.
+// Labels are typically used for metrics, benchmarking, tracing, or categorizing logs in a structured way.
+//
+// The labels are stored atomically and intended to be short-lived, applying only to the next
+// log operation (or until overwritten by a subsequent call to Labels). Multiple labels can
+// be provided as separate string arguments.
+//
+// Example usage:
+//
+//	logger := New("app").Enable()
+//
+//	// Add labels for a specific operation
+//	logger.Labels("load_users", "process_orders").Measure(func() {
+//	    // ... perform work ...
+//	}, func() {
+//	    // ... optional callback ...
+//	})
+func Labels(names ...string) *Logger {
+	return defaultLogger.Labels(names...)
+}
+
+// Since creates a timer that will log the duration when completed
+// If startTime is provided, uses that as the start time; otherwise uses time.Now()
+//
+//	defer logger.Since().Info("request")        // Auto-start
+//	logger.Since(start).Info("request")         // Manual timing
+//	logger.Since().If(debug).Debug("timing")    // Conditional
+func Since(start ...time.Time) *SinceBuilder {
+	return defaultLogger.Since(start...)
+}
+
 // Benchmark logs the duration since a start time at Info level using the default logger.
 // It calculates the time elapsed since the provided start time and logs it with "start",
 // "end", and "duration" fields. Thread-safe via the Logger’s mutex.
@@ -586,8 +615,8 @@ func Dbg(any ...interface{}) {
 // Example:
 //
 //	ll.Dump([]byte{0x41, 0x42}) // Outputs hex/ASCII dump
-func Dump(any interface{}) {
-	defaultLogger.Dump(any)
+func Dump(values ...interface{}) {
+	defaultLogger.Dump(values...)
 }
 
 // Enabled returns whether the default logger is enabled for logging.
