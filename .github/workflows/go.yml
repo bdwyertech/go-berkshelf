@@ -82,6 +82,6 @@ jobs:
           SOURCE_TAG: ${{ steps.git.outputs.SOURCE_TAG }}
 
       - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: './dist/*'
