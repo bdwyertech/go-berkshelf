@@ -3,7 +3,6 @@
 package harness_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -73,7 +72,7 @@ var _ = Describe("Conformance", func() {
 			}
 		})
 
-		It("should produce conformant output for all fixtures", func() {
+		It("should produce conformant output for all fixtures", func(ctx SpecContext) {
 			if len(fixtures) == 0 {
 				Skip("No fixtures found")
 			}
@@ -112,8 +111,6 @@ var _ = Describe("Conformance", func() {
 				for _, cmdSpec := range cfg.Commands {
 					By(fmt.Sprintf("Running command: berks %s %v", cmdSpec.Subcommand, cmdSpec.Args))
 					fmt.Fprintf(os.Stderr, "    berks %s %v ... ", cmdSpec.Subcommand, cmdSpec.Args)
-
-					ctx := context.Background()
 
 					// Run Ruby berks
 					rubyResult, err := runner.RunRuby(ctx, rubyDir, cmdSpec)
