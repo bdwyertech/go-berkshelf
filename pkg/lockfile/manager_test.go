@@ -127,7 +127,7 @@ var _ = Describe("Manager", func() {
 				Version:      version,
 				Source:       nil,
 				Dependencies: make(map[string]*berkshelf.Version),
-				Cookbook:      cookbook,
+				Cookbook:     cookbook,
 			}
 
 			resolution.AddCookbook(resolvedCookbook)
@@ -160,7 +160,7 @@ var _ = Describe("Manager", func() {
 				Version:      version,
 				Source:       nil,
 				Dependencies: make(map[string]*berkshelf.Version),
-				Cookbook:      cookbook,
+				Cookbook:     cookbook,
 			}
 
 			resolution.AddCookbook(resolvedCookbook)
@@ -292,8 +292,8 @@ var _ = Describe("Manager", func() {
 			}
 
 			resolvedCookbook := &resolver.ResolvedCookbook{
-				Name:    "test",
-				Version: version,
+				Name:     "test",
+				Version:  version,
 				Cookbook: cookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "path",
@@ -321,8 +321,8 @@ var _ = Describe("Manager", func() {
 			}
 
 			resolvedCookbook := &resolver.ResolvedCookbook{
-				Name:    "git-cookbook",
-				Version: version,
+				Name:     "git-cookbook",
+				Version:  version,
 				Cookbook: cookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "git",
@@ -350,8 +350,8 @@ var _ = Describe("Manager", func() {
 			}
 
 			resolvedCookbook := &resolver.ResolvedCookbook{
-				Name:    "nginx",
-				Version: version,
+				Name:     "nginx",
+				Version:  version,
 				Cookbook: cookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "supermarket",
@@ -383,7 +383,7 @@ var _ = Describe("Manager", func() {
 				Version:      version,
 				Source:       nil,
 				Dependencies: make(map[string]*berkshelf.Version),
-				Cookbook:      cookbook,
+				Cookbook:     cookbook,
 			}
 
 			resolution.AddCookbook(resolvedCookbook)
@@ -407,8 +407,8 @@ var _ = Describe("Manager", func() {
 				Dependencies: make(map[string]*berkshelf.Constraint),
 			}
 			pathResolved := &resolver.ResolvedCookbook{
-				Name:    "test",
-				Version: pathVersion,
+				Name:     "test",
+				Version:  pathVersion,
 				Cookbook: pathCookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "path",
@@ -426,8 +426,8 @@ var _ = Describe("Manager", func() {
 				Dependencies: make(map[string]*berkshelf.Constraint),
 			}
 			gitResolved := &resolver.ResolvedCookbook{
-				Name:    "git-cookbook",
-				Version: gitVersion,
+				Name:     "git-cookbook",
+				Version:  gitVersion,
 				Cookbook: gitCookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "git",
@@ -445,8 +445,8 @@ var _ = Describe("Manager", func() {
 				Dependencies: make(map[string]*berkshelf.Constraint),
 			}
 			supermarketResolved := &resolver.ResolvedCookbook{
-				Name:    "nginx",
-				Version: supermarketVersion,
+				Name:     "nginx",
+				Version:  supermarketVersion,
 				Cookbook: supermarketCookbook,
 				Source: &berkshelf.SourceLocation{
 					Type: "supermarket",
@@ -469,7 +469,6 @@ var _ = Describe("Manager", func() {
 		})
 	})
 })
-
 
 var _ = Describe("ExtractDirectDependencies with constraints", func() {
 	var (
