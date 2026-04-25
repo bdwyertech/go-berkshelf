@@ -1,0 +1,6 @@
+source 'https://supermarket.chef.io'
+
+cookbook 'apt', '~> 7.5'
+cookbook 'nginx', '>= 12.0'
+cookbook 'yum', '= 7.4.0'
+cookbook 'logrotate'

@@ -83,6 +83,7 @@ var _ = Describe("Conformance", func() {
 
 			for _, fixture := range fixtures {
 				By(fmt.Sprintf("Testing fixture: %s", fixture.Name))
+				fmt.Fprintf(os.Stderr, "  → Testing fixture: %s\n", fixture.Name)
 
 				// Load fixture config
 				cfg, err := harness.LoadFixtureConfig(fixture.Path)
@@ -94,21 +95,23 @@ var _ = Describe("Conformance", func() {
 				// Skip if configured
 				if cfg.Skip {
 					GinkgoWriter.Printf("SKIP: fixture %q has skip=true\n", fixture.Name)
+					fmt.Fprintf(os.Stderr, "    SKIP (skip=true)\n")
 					continue
 				}
 
-				// Run each command in the fixture
+				// Create shared temp dirs for all commands in this fixture
+				rubyDir, err := harness.CopyFixtureToTempDir(fixture.Path)
+				Expect(err).NotTo(HaveOccurred(), "Failed to copy fixture for Ruby")
+				defer os.RemoveAll(rubyDir)
+
+				goDir, err := harness.CopyFixtureToTempDir(fixture.Path)
+				Expect(err).NotTo(HaveOccurred(), "Failed to copy fixture for Go")
+				defer os.RemoveAll(goDir)
+
+				// Run each command in the fixture (sharing temp dirs so state carries over)
 				for _, cmdSpec := range cfg.Commands {
 					By(fmt.Sprintf("Running command: berks %s %v", cmdSpec.Subcommand, cmdSpec.Args))
-
-					// Copy fixture to temp dirs for each tool
-					rubyDir, err := harness.CopyFixtureToTempDir(fixture.Path)
-					Expect(err).NotTo(HaveOccurred(), "Failed to copy fixture for Ruby")
-					defer os.RemoveAll(rubyDir)
-
-					goDir, err := harness.CopyFixtureToTempDir(fixture.Path)
-					Expect(err).NotTo(HaveOccurred(), "Failed to copy fixture for Go")
-					defer os.RemoveAll(goDir)
+					fmt.Fprintf(os.Stderr, "    berks %s %v ... ", cmdSpec.Subcommand, cmdSpec.Args)
 
 					ctx := context.Background()
 
@@ -189,13 +192,28 @@ var _ = Describe("Conformance", func() {
 
 					// Assert no failures
 					if len(failures) > 0 {
+						fmt.Fprintf(os.Stderr, "FAIL\n")
 						failMsg := fmt.Sprintf("Conformance failure for fixture %q, command %q:\n",
 							fixture.Name, cmdSpec.Subcommand)
 						for _, f := range failures {
 							failMsg += "\n" + f
 						}
+						failMsg += fmt.Sprintf("\n\n--- Diagnostic Details ---")
+						failMsg += fmt.Sprintf("\nRuby exit code: %d", rubyResult.ExitCode)
+						failMsg += fmt.Sprintf("\nGo exit code:   %d", goResult.ExitCode)
+						failMsg += fmt.Sprintf("\n\nRuby stdout:\n%s", rubyResult.Stdout)
+						failMsg += fmt.Sprintf("\nGo stdout:\n%s", goResult.Stdout)
+						if rubyResult.Stderr != "" || goResult.Stderr != "" {
+							failMsg += fmt.Sprintf("\nRuby stderr:\n%s", rubyResult.Stderr)
+							failMsg += fmt.Sprintf("\nGo stderr:\n%s", goResult.Stderr)
+						}
+						if rubyResult.Lockfile != "" || goResult.Lockfile != "" {
+							failMsg += fmt.Sprintf("\n\nRuby lockfile:\n%s", rubyResult.Lockfile)
+							failMsg += fmt.Sprintf("\nGo lockfile:\n%s", goResult.Lockfile)
+						}
 						Fail(failMsg)
 					}
+					fmt.Fprintf(os.Stderr, "PASS\n")
 				}
 			}
 		})
