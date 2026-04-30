@@ -1,0 +1,31 @@
+{
+  "revision": 7,
+  "generated_at": "2026-01-28T21:30:21.82353-05:00",
+  "sources": {
+    "": {
+      "type": "path",
+      "cookbooks": {
+        "test": {
+          "version": "0.1.0",
+          "source": {
+            "type": "path",
+            "path": "/Users/bdwyer/GIT/Github/go-berkshelf/test/fixtures/cookbook"
+          }
+        }
+      }
+    },
+    "https://supermarket.chef.io": {
+      "type": "supermarket",
+      "url": "https://supermarket.chef.io",
+      "cookbooks": {
+        "aws": {
+          "version": "9.3.0",
+          "source": {
+            "type": "supermarket",
+            "url": "https://supermarket.chef.io"
+          }
+        }
+      }
+    }
+  }
+}

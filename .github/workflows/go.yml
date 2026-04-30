@@ -37,6 +37,56 @@ jobs:
         with:
           version: 'latest'
 
+  conformance:
+    name: Conformance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Set up Mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          working_directory: test/harness
+
+      - name: Install Taskfile
+        uses: go-task/setup-task@v2
+
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: test/harness/vendor/bundle
+          key: bundler-${{ runner.os }}-${{ hashFiles('test/harness/Gemfile.lock') }}
+          restore-keys: |
+            bundler-${{ runner.os }}-
+
+      - name: Setup harness dependencies
+        working-directory: test/harness
+        run: |
+          bundle config set --local path vendor/bundle
+          task setup
+        env:
+          BUNDLE_PATH: vendor/bundle
+
+      - name: Build Go binary
+        working-directory: test/harness
+        run: task build
+
+      - name: Run conformance tests
+        working-directory: test/harness
+        run: task conformance
+
   release:
     name: Release
     runs-on: ubuntu-latest
