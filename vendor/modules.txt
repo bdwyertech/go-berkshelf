@@ -232,8 +232,8 @@ github.com/klauspost/cpuid/v2
 # github.com/mattn/go-colorable v0.1.14
 ## explicit; go 1.18
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.20
-## explicit; go 1.15
+# github.com/mattn/go-isatty v0.0.22
+## explicit; go 1.21
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.19
 ## explicit; go 1.20
@@ -322,8 +322,8 @@ github.com/rivo/uniseg
 ## explicit; go 1.23.0
 github.com/sagikazarmark/locafero
 github.com/sagikazarmark/locafero/internal/queue
-# github.com/schollz/progressbar/v3 v3.19.0
-## explicit; go 1.22
+# github.com/schollz/progressbar/v3 v3.19.1
+## explicit; go 1.25.0
 github.com/schollz/progressbar/v3
 # github.com/sergi/go-diff v1.4.0
 ## explicit; go 1.13
